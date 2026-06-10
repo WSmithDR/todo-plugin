@@ -4,15 +4,20 @@ A Claude Code plugin for task lifecycle management. Maintains `.todo/TODO.md`, `
 
 ## Install
 
-Add to your project's `.claude/settings.local.json`:
-
-```json
-{
-  "enabledMcpjsonServers": ["todo-plugin"]
-}
+**Per-project (recommended):**
+```bash
+claude plugin install github:WSmithDR/todo-plugin --scope project
 ```
 
-Or install via Claude Code marketplace: `todo-plugin`.
+**Global:**
+```bash
+claude plugin install github:WSmithDR/todo-plugin
+```
+
+**Local (development):**
+```bash
+claude plugin install /path/to/todo-plugin --scope project
+```
 
 ## File structure
 
