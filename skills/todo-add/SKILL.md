@@ -9,7 +9,15 @@ Adds a new item to `.todo/TODO.md` with proper formatting, including creator met
 
 ## Process
 
-### 0. Detect and migrate legacy files
+### 0. Check plugin config
+
+```bash
+cat .todo/config.json 2>/dev/null
+```
+
+If `.todo/config.json` does not exist, invoke `todo-config` before continuing. Do not proceed until config is saved.
+
+### 1. Detect and migrate legacy files
 
 Run before anything else:
 

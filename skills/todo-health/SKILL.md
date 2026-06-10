@@ -52,17 +52,26 @@ else
 fi
 ```
 
-### 5. Output
+### 5. Plugin config status
+
+```bash
+cat .todo/config.json 2>/dev/null
+```
+
+If `.todo/config.json` is missing, note: `⚠ config not set — run todo-config to initialize`.
+
+### 6. Output
 
 Print a clean summary:
 
 ```
 ✓ todo-plugin v1.0.0 — active
-✓ Skills: todo-add, todo-audit, todo-clarify, todo-doing, todo-done,
+✓ Skills: todo-add, todo-audit, todo-clarify, todo-config, todo-doing, todo-done,
           todo-health, todo-item, todo-recommend, todo-solutions, todo-triage
 ✓ Hooks: PreToolUse(Bash) · PostToolUse(Bash)
 ✓ .todo/ — TODO:N  DOING:N  DONE:N
-  (or) — .todo/ not initialized yet
+✓ Config: gitignore_todo=<valor> · configured_by=<nombre> · <fecha>
+  (or) ⚠ Config: not set — run todo-config
 
 Plugin is ready. Run todo-add to create your first task.
 ```
