@@ -4,19 +4,19 @@ A Claude Code plugin for task lifecycle management. Maintains `.todo/TODO.md`, `
 
 ## Install
 
-**Per-project (recommended):**
+**1. Registrar el marketplace (una sola vez, global):**
 ```bash
-claude plugin install github:WSmithDR/todo-plugin --scope project
+claude plugin marketplace add WSmithDR/todo-plugin
 ```
 
-**Global:**
+**2. Instalar en el proyecto:**
 ```bash
-claude plugin install github:WSmithDR/todo-plugin
+claude plugin install todo-plugin@todo-plugin --scope project
 ```
 
-**Local (development):**
+**Global (todos los proyectos):**
 ```bash
-claude plugin install /path/to/todo-plugin --scope project
+claude plugin install todo-plugin@todo-plugin
 ```
 
 ## File structure
