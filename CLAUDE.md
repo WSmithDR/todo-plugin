@@ -1,6 +1,6 @@
 # todo-plugin
 
-A Claude Code plugin for task lifecycle management. Maintains `.todo/TODO.md`, `DOING.md`, `DONE.md`, and `DISCARDED.md` using the Eisenhower Q1–Q4 matrix.
+A Claude Code plugin for task lifecycle management. Maintains `.todo/TODO.md`, `.todo/DOING.md`, `.todo/DONE.md`, and `.todo/DISCARDED.md` using the Eisenhower Q1–Q4 matrix.
 
 ## Install
 
