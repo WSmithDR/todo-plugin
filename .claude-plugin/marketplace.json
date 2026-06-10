@@ -1,0 +1,30 @@
+{
+  "name": "todo-plugin",
+  "owner": {
+    "name": "WSmithDR",
+    "url": "https://github.com/WSmithDR"
+  },
+  "metadata": {
+    "description": "Task lifecycle management for Claude Code projects — add, triage, audit, and track work in .todo/.",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "todo-plugin",
+      "source": "./",
+      "description": "Manages task lifecycle in .todo/ using the Eisenhower matrix. Skills for adding, triaging, auditing, and tracking work. Hooks enforce pre-commit task review and error tracking.",
+      "version": "1.0.0",
+      "author": {
+        "name": "WSmithDR"
+      },
+      "category": "productivity",
+      "keywords": [
+        "todo",
+        "tasks",
+        "project-management",
+        "eisenhower",
+        "developer-tools"
+      ]
+    }
+  ]
+}
