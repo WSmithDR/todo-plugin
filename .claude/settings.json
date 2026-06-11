@@ -1,0 +1,5 @@
+{
+  "enabledPlugins": {
+    "cli-plugin-template@cli-plugin-template": true
+  }
+}
