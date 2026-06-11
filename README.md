@@ -19,6 +19,25 @@ claude plugin install todo-plugin@todo-plugin --scope project
 claude plugin install todo-plugin@todo-plugin
 ```
 
+## Actualizar
+
+**Scope project:**
+```bash
+claude plugin update todo-plugin@todo-plugin --scope project
+```
+
+**Scope user (global):**
+```bash
+claude plugin update todo-plugin@todo-plugin
+```
+
+Para verificar que el update tomó efecto, ejecutar `/todo-health` — la versión mostrada debe coincidir con la última publicada.
+
+### Convención de versionado
+
+El plugin sigue [semver](https://semver.org/lang/es/): `MAJOR.MINOR.PATCH`.
+La versión se incrementa en cada cambio publicado, por lo que si `/todo-health` muestra una versión anterior a la esperada, el caché local no se actualizó correctamente.
+
 ## Verificar integración
 
 ```

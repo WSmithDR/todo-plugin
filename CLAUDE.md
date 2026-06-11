@@ -19,6 +19,20 @@ claude plugin install todo-plugin@todo-plugin --scope project
 claude plugin install todo-plugin@todo-plugin
 ```
 
+## Update
+
+**Scope project:**
+```bash
+claude plugin update todo-plugin@todo-plugin --scope project
+```
+
+**Scope user (global):**
+```bash
+claude plugin update todo-plugin@todo-plugin
+```
+
+Para verificar que el update tomó efecto, ejecutar `/todo-health` — la versión mostrada debe coincidir con la última publicada. El plugin sigue semver (`MAJOR.MINOR.PATCH`) y la versión se incrementa en cada cambio publicado.
+
 ## File structure
 
 All task files live under `.todo/` in the project root — never at the root level.
