@@ -31,7 +31,13 @@ claude plugin update todo-plugin@todo-plugin --scope project
 claude plugin update todo-plugin@todo-plugin
 ```
 
-Para verificar que el update tomó efecto, ejecutar `/todo-health` — la versión mostrada debe coincidir con la última publicada. El plugin sigue semver (`MAJOR.MINOR.PATCH`) y la versión se incrementa en cada cambio publicado.
+Para verificar que el update tomó efecto, ejecutar `/todo-health` — la versión mostrada debe coincidir con la última publicada. El plugin sigue semver (`MAJOR.MINOR.PATCH`) y la versión se incrementa automáticamente en cada commit según el prefijo:
+
+| Prefijo | Bump |
+|---|---|
+| `feat:` | minor |
+| `fix:`, `chore:`, `docs:`, `refactor:`, `style:`, `test:`, `ci:` | patch |
+| `feat!:` o `BREAKING CHANGE` en el cuerpo | major |
 
 ## File structure
 
