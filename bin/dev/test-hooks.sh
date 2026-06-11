@@ -52,35 +52,33 @@ result=$(run_in_tmpdir '
 echo ""
 echo "=== pre-commit.sh ==="
 
-# Input simulado: comando que NO es git commit → exit 0
-result=$(run_in_tmpdir '
-    input='"'"'{"tool_input":{"command":"echo hello"}}'"'"'
-    out=$(echo "$input" | bash '"$HOOKS_DIR"'/pre-commit.sh 2>&1); rc=$?
-    [ $rc -eq 0 ] && echo OK || echo "rc=$rc out=$out"
-')
-[ "$result" = "OK" ] && _pass "no git commit → exit 0 silencioso" || _fail "no git commit → $result"
-
-# Input simulado: git commit sin .todo/ → exit 0
+# Sin .todo/ → exit 0
 result=$(run_in_tmpdir '
     git init -q && git config user.email "t@t.com" && git config user.name "T"
-    input='"'"'{"tool_input":{"command":"git commit -m test"}}'"'"'
-    out=$(echo "$input" | bash '"$HOOKS_DIR"'/pre-commit.sh 2>&1); rc=$?
-    [ $rc -eq 0 ] && echo OK || echo "rc=$rc out=$out"
+    out=$(bash '"$HOOKS_DIR"'/pre-commit.sh 2>&1); rc=$?
+    [ $rc -eq 0 ] && [ -z "$out" ] && echo OK || echo "rc=$rc out=$out"
 ')
-[ "$result" = "OK" ] && _pass "git commit sin .todo/ → exit 0 silencioso" || _fail "git commit sin .todo/ → $result"
+[ "$result" = "OK" ] && _pass "sin .todo/ → exit 0 silencioso" || _fail "sin .todo/ → $result"
 
-# Input simulado: git commit con .todo/DOING.md con tareas + staged files → exit 2
+# .todo/ sin tareas abiertas → exit 0
+result=$(run_in_tmpdir '
+    git init -q && git config user.email "t@t.com" && git config user.name "T"
+    mkdir -p .todo && touch .todo/DOING.md .todo/TODO.md
+    out=$(bash '"$HOOKS_DIR"'/pre-commit.sh 2>&1); rc=$?
+    [ $rc -eq 0 ] && [ -z "$out" ] && echo OK || echo "rc=$rc out=$out"
+')
+[ "$result" = "OK" ] && _pass ".todo/ sin tareas → exit 0 silencioso" || _fail ".todo/ sin tareas → $result"
+
+# Tareas en DOING + staged files → exit 1 + mensaje
 result=$(run_in_tmpdir '
     git init -q && git config user.email "t@t.com" && git config user.name "T"
     mkdir -p .todo
     echo "- [ ] **Tarea de prueba** — descripción" > .todo/DOING.md
-    echo "contenido" > archivo.txt
-    git add archivo.txt
-    input='"'"'{"tool_input":{"command":"git commit -m feat: algo"}}'"'"'
-    err=$(echo "$input" | bash '"$HOOKS_DIR"'/pre-commit.sh 2>&1); rc=$?
-    [ $rc -eq 2 ] && echo "$err" | grep -q "TODO-PRE-COMMIT" && echo OK || echo "rc=$rc err=$err"
+    echo "contenido" > archivo.txt && git add archivo.txt
+    err=$(bash '"$HOOKS_DIR"'/pre-commit.sh 2>&1); rc=$?
+    [ $rc -eq 1 ] && echo "$err" | grep -q "TODO-PRE-COMMIT" && echo OK || echo "rc=$rc err=$err"
 ')
-[ "$result" = "OK" ] && _pass "git commit con tareas en DOING + staged → exit 2 + TODO-PRE-COMMIT" || _fail "git commit con tareas → $result"
+[ "$result" = "OK" ] && _pass "tareas en DOING + staged → exit 1 + TODO-PRE-COMMIT" || _fail "tareas en DOING + staged → $result"
 
 echo ""
 echo "=== error-checker.sh ==="

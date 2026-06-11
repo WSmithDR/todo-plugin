@@ -71,8 +71,9 @@ All task files live under `.todo/` in the project root — never at the root lev
 
 ## Hooks
 
-- **PreToolUse(Bash)**: before `git commit`, checks DOING.md for tasks that may have been resolved
+- **SessionStart**: detects `.todo/` without `config.json` and prompts to run `todo-config`
 - **PostToolUse(Bash)**: after a failing bash command, evaluates whether to open a task in TODO.md
+- **Git pre-commit** (editor-agnostic): checks DOING.md before every commit — installed by `todo-config`
 
 ## Task format
 

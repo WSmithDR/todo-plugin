@@ -99,12 +99,28 @@ print('Config guardada en .todo/config.json')
 "
 ```
 
-### 6. Confirm to user
+### 6. Install git pre-commit hook
+
+Install the plugin's pre-commit hook so it runs on every `git commit`, regardless of editor or CLI:
+
+```bash
+ln -sf "${CLAUDE_PLUGIN_ROOT}/bin/hooks/pre-commit.sh" .git/hooks/pre-commit
+chmod +x "${CLAUDE_PLUGIN_ROOT}/bin/hooks/pre-commit.sh"
+```
+
+If `.git/hooks/pre-commit` already exists and is **not** a symlink to the plugin's script, warn the user before overwriting:
+
+```
+⚠ Ya existe .git/hooks/pre-commit. ¿Reemplazar con el hook del plugin?
+```
+
+### 7. Confirm to user
 
 ```
 ✓ Config guardada
   gitignore_todo: <valor> → .gitignore <actualizado|sin cambios>
   configured_by: <nombre> · <fecha>
+✓ Git hook instalado → .git/hooks/pre-commit
 ```
 
 ## Change detection
