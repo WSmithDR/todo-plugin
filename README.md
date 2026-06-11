@@ -104,3 +104,16 @@ GitHub Actions corre `bin/dev/test-hooks.sh` en cada push y PR a `main`.
 | `todo-solutions` | Adjuntar opciones concretas de solución |
 | `todo-audit` | Auditoría completa del codebase |
 | `todo-health` | Verificar que el plugin está integrado correctamente |
+
+## Hooks
+
+### Claude Code (`hooks/hooks.json`)
+
+| Hook | Trigger | Acción |
+|---|---|---|
+| `SessionStart` | Inicio de sesión | Instala el git pre-commit hook si no existe; detecta `.todo/` sin `config.json` y solicita `todo-config` |
+| `PostToolUse(Bash)` | Comando bash fallido | Evalúa si el error merece abrir una tarea en TODO.md |
+
+### Git (`bin/hooks/pre-commit.sh`)
+
+Editor-agnóstico — corre en cualquier CLI o editor. Se instala automáticamente en la primera sesión del proyecto via `SessionStart`. Bloquea `git commit` si hay tareas en DOING.md que podrían estar resueltas por los cambios en staging.
