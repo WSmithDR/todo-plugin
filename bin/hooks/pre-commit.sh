@@ -43,24 +43,27 @@ fi
 # Commits recientes (para contexto de resolución)
 RECENT_COMMITS=$(git log --oneline -5 2>/dev/null | sed 's/^/  /' || echo "  (sin commits recientes)")
 
-echo "TODO-PRE-COMMIT: Revisión previa al commit."
-echo ""
-echo "Archivos en staging: $STAGED"
-echo ""
+MSG="TODO-PRE-COMMIT: Revisión previa al commit.
+
+Archivos en staging: $STAGED
+"
 if [ "$DOING_COUNT" != "0" ]; then
-    echo "Tareas EN PROGRESO ($DOING_COUNT en DOING.md):"
-    echo "$DOING_ITEMS"
-    echo ""
+    MSG="${MSG}Tareas EN PROGRESO ($DOING_COUNT en DOING.md):
+${DOING_ITEMS}
+"
 fi
 if [ "$TODO_COUNT" != "0" ]; then
-    echo "Tareas ABIERTAS: $TODO_COUNT items en TODO.md"
-    echo ""
+    MSG="${MSG}Tareas ABIERTAS: $TODO_COUNT items en TODO.md
+"
 fi
-echo "Commits recientes:"
-echo "$RECENT_COMMITS"
-echo ""
-echo "Instrucciones:"
-echo "  1. Compara los archivos en staging con las tareas en progreso."
-echo "  2. Si alguna tarea fue resuelta por este commit → invocar todo-done primero."
-echo "  3. Si ninguna fue resuelta → continuar con el commit sin cambios."
-echo "  4. No bloquear el commit si no hay coincidencias claras."
+MSG="${MSG}Commits recientes:
+${RECENT_COMMITS}
+
+Instrucciones:
+  1. Compara los archivos en staging con las tareas en progreso.
+  2. Si alguna tarea fue resuelta por este commit → invocar todo-done primero.
+  3. Si ninguna fue resuelta → continuar con el commit sin cambios.
+  4. No bloquear el commit si no hay coincidencias claras."
+
+echo "$MSG" >&2
+exit 2

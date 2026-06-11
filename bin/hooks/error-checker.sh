@@ -61,12 +61,13 @@ lines = text.strip().split('\n')[:5]
 print('\n'.join(lines)[:400])
 " 2>/dev/null || echo "(sin output)")
 
-echo "TODO-ERROR-CHECKER activado. El comando falló:"
-echo "  Comando: $CMD"
-echo "  Output:  $OUTPUT"
-echo ""
-echo "Evalúa si vale la pena registrar esto en .todo/TODO.md:"
-echo "  → Error recurrente o de configuración que podría volver: invocar todo-add"
-echo "  → Error puntual ya resuelto o esperado:                  ignorar"
-echo ""
-echo "Solo agregar tarea si hay valor real en trackearla."
+echo "TODO-ERROR-CHECKER: El comando falló.
+  Comando: $CMD
+  Output:  $OUTPUT
+
+Evalúa si vale la pena registrar esto en .todo/TODO.md:
+  → Error recurrente o de configuración que podría volver: invocar todo-add
+  → Error puntual ya resuelto o esperado:                  ignorar
+
+Solo agregar tarea si hay valor real en trackearla." >&2
+exit 2
