@@ -71,9 +71,16 @@ All task files live under `.todo/` in the project root — never at the root lev
 
 ## Hooks
 
-- **SessionStart**: detects `.todo/` without `config.json` and prompts to run `todo-config`
-- **PostToolUse(Bash)**: after a failing bash command, evaluates whether to open a task in TODO.md
-- **Git pre-commit** (editor-agnostic): checks DOING.md before every commit — installed by `todo-config`
+### Claude Code hooks (`hooks/hooks.json`)
+
+| Hook | Trigger | Acción |
+|---|---|---|
+| `SessionStart` | Inicio de sesión | Instala el git pre-commit hook si no existe; detecta `.todo/` sin `config.json` y solicita `todo-config` |
+| `PostToolUse(Bash)` | Comando bash fallido | Evalúa si el error merece abrir una tarea en TODO.md |
+
+### Git hook (`bin/hooks/pre-commit.sh`)
+
+Editor-agnóstico — corre en cualquier CLI o editor. Se instala automáticamente via `SessionStart` en la primera sesión del proyecto. Bloquea `git commit` si hay tareas en DOING.md que podrían estar resueltas por los cambios en staging.
 
 ## Task format
 
