@@ -25,29 +25,53 @@ run_in_tmpdir() {
 echo ""
 echo "=== session-start.sh ==="
 
-# Caso 1: sin .todo/ → exit 0, sin output
+# Sin .todo/ → exit 0 silencioso
 result=$(run_in_tmpdir '
     out=$(bash '"$HOOKS_DIR"'/session-start.sh 2>&1); rc=$?
     [ $rc -eq 0 ] && [ -z "$out" ] && echo OK || echo "rc=$rc out=$out"
 ')
 [ "$result" = "OK" ] && _pass "sin .todo/ → exit 0 silencioso" || _fail "sin .todo/ → $result"
 
-# Caso 2: .todo/ existe + config.json existe → exit 0, sin output
+# .todo/ + config.json → exit 0 silencioso (sin .git, CLAUDE_PLUGIN_ROOT vacío)
 result=$(run_in_tmpdir '
-    mkdir -p .todo
-    echo "{}" > .todo/config.json
-    out=$(bash '"$HOOKS_DIR"'/session-start.sh 2>&1); rc=$?
+    mkdir -p .todo && echo "{}" > .todo/config.json
+    out=$(CLAUDE_PLUGIN_ROOT="" bash '"$HOOKS_DIR"'/session-start.sh 2>&1); rc=$?
     [ $rc -eq 0 ] && [ -z "$out" ] && echo OK || echo "rc=$rc out=$out"
 ')
 [ "$result" = "OK" ] && _pass ".todo/ + config.json → exit 0 silencioso" || _fail ".todo/ + config.json → $result"
 
-# Caso 3: .todo/ existe sin config.json → exit 2, stderr con mensaje
+# .todo/ sin config.json → exit 2 + TODO-CONFIG-MISSING
 result=$(run_in_tmpdir '
     mkdir -p .todo
-    err=$(bash '"$HOOKS_DIR"'/session-start.sh 2>&1); rc=$?
+    err=$(CLAUDE_PLUGIN_ROOT="" bash '"$HOOKS_DIR"'/session-start.sh 2>&1); rc=$?
     [ $rc -eq 2 ] && echo "$err" | grep -q "TODO-CONFIG-MISSING" && echo OK || echo "rc=$rc err=$err"
 ')
 [ "$result" = "OK" ] && _pass ".todo/ sin config.json → exit 2 + TODO-CONFIG-MISSING" || _fail ".todo/ sin config.json → $result"
+
+# .git/ + CLAUDE_PLUGIN_ROOT set + hook no instalado → instala el hook
+result=$(run_in_tmpdir '
+    mkdir -p .todo .git/hooks && echo "{}" > .todo/config.json
+    FAKE_ROOT=$(mktemp -d)
+    mkdir -p "$FAKE_ROOT/bin/hooks"
+    touch "$FAKE_ROOT/bin/hooks/pre-commit.sh"
+    out=$(CLAUDE_PLUGIN_ROOT="$FAKE_ROOT" bash '"$HOOKS_DIR"'/session-start.sh 2>&1); rc=$?
+    [ $rc -eq 0 ] && [ -L ".git/hooks/pre-commit" ] && echo "$out" | grep -q "TODO-SETUP" && echo OK || echo "rc=$rc out=$out link=$(readlink .git/hooks/pre-commit 2>/dev/null || echo none)"
+    rm -rf "$FAKE_ROOT"
+')
+[ "$result" = "OK" ] && _pass ".git/ + CLAUDE_PLUGIN_ROOT → hook instalado" || _fail ".git/ + CLAUDE_PLUGIN_ROOT → $result"
+
+# Hook ya instalado correctamente → sin reinstalar
+result=$(run_in_tmpdir '
+    mkdir -p .todo .git/hooks && echo "{}" > .todo/config.json
+    FAKE_ROOT=$(mktemp -d)
+    mkdir -p "$FAKE_ROOT/bin/hooks"
+    touch "$FAKE_ROOT/bin/hooks/pre-commit.sh"
+    ln -sf "$FAKE_ROOT/bin/hooks/pre-commit.sh" .git/hooks/pre-commit
+    out=$(CLAUDE_PLUGIN_ROOT="$FAKE_ROOT" bash '"$HOOKS_DIR"'/session-start.sh 2>&1); rc=$?
+    [ $rc -eq 0 ] && [ -z "$out" ] && echo OK || echo "rc=$rc out=$out"
+    rm -rf "$FAKE_ROOT"
+')
+[ "$result" = "OK" ] && _pass "hook ya instalado → sin reinstalar" || _fail "hook ya instalado → $result"
 
 echo ""
 echo "=== pre-commit.sh ==="
