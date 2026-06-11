@@ -1,0 +1,61 @@
+#!/bin/bash
+# commit-msg: auto-bump version en .claude-plugin/plugin.json
+# según prefijo conventional commits.
+#
+# feat:              → minor
+# fix|chore|docs|... → patch
+# BREAKING (en msg)  → major
+
+set -euo pipefail
+
+MSG_FILE="$1"
+MSG=$(cat "$MSG_FILE")
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+PLUGIN_JSON="$REPO_ROOT/.claude-plugin/plugin.json"
+
+# Si el usuario ya modificó plugin.json manualmente, no tocar
+if git diff --cached --name-only | grep -q "\.claude-plugin/plugin\.json"; then
+    exit 0
+fi
+
+# Determinar tipo de bump
+if echo "$MSG" | grep -qiE "(BREAKING[ -]CHANGE|^.+!:)"; then
+    BUMP="major"
+elif echo "$MSG" | grep -qiE "^feat(\(.+\))?:"; then
+    BUMP="minor"
+else
+    BUMP="patch"
+fi
+
+# Leer versión actual
+CURRENT=$(python3 -c "
+import json
+print(json.load(open('$PLUGIN_JSON'))['version'])
+")
+
+# Calcular nueva versión
+NEW=$(python3 -c "
+major, minor, patch = map(int, '$CURRENT'.split('.'))
+bump = '$BUMP'
+if bump == 'major':
+    major += 1; minor = 0; patch = 0
+elif bump == 'minor':
+    minor += 1; patch = 0
+else:
+    patch += 1
+print(f'{major}.{minor}.{patch}')
+")
+
+# Escribir versión actualizada
+python3 -c "
+import json
+with open('$PLUGIN_JSON') as f:
+    d = json.load(f)
+d['version'] = '$NEW'
+with open('$PLUGIN_JSON', 'w') as f:
+    json.dump(d, f, indent=2)
+    f.write('\n')
+"
+
+git add "$PLUGIN_JSON"
+echo "  version: $CURRENT → $NEW ($BUMP)"

@@ -6,6 +6,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HOOKS_DIR="$SCRIPT_DIR/../hooks"
+GIT_HOOKS_DIR="$SCRIPT_DIR/git-hooks"
 PASS=0
 FAIL=0
 
@@ -101,6 +102,50 @@ result=$(run_in_tmpdir '
     [ $rc -eq 2 ] && echo "$err" | grep -q "TODO-ERROR-CHECKER" && echo OK || echo "rc=$rc err=$err"
 ')
 [ "$result" = "OK" ] && _pass "comando fallido → exit 2 + TODO-ERROR-CHECKER" || _fail "comando fallido → $result"
+
+echo ""
+echo "=== commit-msg (versionado) ==="
+
+_test_bump() {
+    local label="$1"
+    local msg="$2"
+    local initial="$3"
+    local expected="$4"
+
+    result=$(run_in_tmpdir "
+        git init -q && git config user.email 't@t.com' && git config user.name 'T'
+        mkdir -p .claude-plugin
+        echo '{\"version\":\"$initial\"}' > .claude-plugin/plugin.json
+        echo 'x' > file.txt && git add file.txt
+        msg_file=\$(mktemp)
+        echo '$msg' > \"\$msg_file\"
+        out=\$(bash '$GIT_HOOKS_DIR/commit-msg' \"\$msg_file\" 2>&1); rc=\$?
+        got=\$(python3 -c \"import json; print(json.load(open('.claude-plugin/plugin.json'))['version'])\")
+        [ \$rc -eq 0 ] && [ \"\$got\" = '$expected' ] && echo OK || echo \"rc=\$rc got=\$got out=\$out\"
+    ")
+    [ "$result" = "OK" ] && _pass "$label ($initial → $expected)" || _fail "$label → $result"
+}
+
+_test_bump "fix: → patch"    "fix: corregir algo"          "1.0.3" "1.0.4"
+_test_bump "feat: → minor"   "feat: nueva funcionalidad"   "1.0.3" "1.1.0"
+_test_bump "chore: → patch"  "chore: actualizar deps"      "1.2.5" "1.2.6"
+_test_bump "docs: → patch"   "docs: actualizar README"     "1.0.3" "1.0.4"
+_test_bump "BREAKING → major" "feat!: romper API"          "1.0.3" "2.0.0"
+
+# Si plugin.json ya fue staged manualmente, no tocar
+result=$(run_in_tmpdir "
+    git init -q && git config user.email 't@t.com' && git config user.name 'T'
+    mkdir -p .claude-plugin
+    echo '{\"version\":\"9.9.9\"}' > .claude-plugin/plugin.json
+    git add .claude-plugin/plugin.json
+    echo 'x' > file.txt && git add file.txt
+    msg_file=\$(mktemp)
+    echo 'fix: algo' > \"\$msg_file\"
+    bash '$GIT_HOOKS_DIR/commit-msg' \"\$msg_file\" 2>&1
+    got=\$(python3 -c \"import json; print(json.load(open('.claude-plugin/plugin.json'))['version'])\")
+    [ \"\$got\" = '9.9.9' ] && echo OK || echo \"got=\$got\"
+")
+[ "$result" = "OK" ] && _pass "plugin.json staged manualmente → sin cambios" || _fail "plugin.json staged manualmente → $result"
 
 echo ""
 echo "Resultado: $PASS passed, $FAIL failed"

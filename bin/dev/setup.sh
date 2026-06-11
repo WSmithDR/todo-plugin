@@ -6,21 +6,30 @@
 set -euo pipefail
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
-HOOK_SRC="$REPO_ROOT/bin/dev/git-hooks/pre-commit"
-HOOK_DST="$REPO_ROOT/.git/hooks/pre-commit"
+
+install_hook() {
+    local name="$1"
+    local src="$REPO_ROOT/bin/dev/git-hooks/$name"
+    local dst="$REPO_ROOT/.git/hooks/$name"
+
+    chmod +x "$src"
+    if [ -L "$dst" ] && [ "$(readlink "$dst")" = "$src" ]; then
+        echo "✓ $name hook ya instalado"
+    else
+        ln -sf "$src" "$dst"
+        echo "✓ $name hook instalado → .git/hooks/$name"
+    fi
+}
 
 echo "todo-plugin — setup de desarrollo"
 echo ""
 
-# Git hook
-if [ -L "$HOOK_DST" ] && [ "$(readlink "$HOOK_DST")" = "$HOOK_SRC" ]; then
-    echo "✓ pre-commit hook ya instalado"
-else
-    ln -sf "$HOOK_SRC" "$HOOK_DST"
-    chmod +x "$HOOK_SRC"
-    echo "✓ pre-commit hook instalado → .git/hooks/pre-commit"
-fi
+install_hook "pre-commit"
+install_hook "commit-msg"
 
 echo ""
-echo "Listo. Los tests corren automáticamente antes de cada commit."
-echo "Para correrlos manualmente: bash bin/dev/test-hooks.sh"
+echo "Listo."
+echo "  pre-commit : corre tests antes de cada commit"
+echo "  commit-msg : auto-bump version según conventional commits"
+echo ""
+echo "Para correr tests manualmente: bash bin/dev/test-hooks.sh"
