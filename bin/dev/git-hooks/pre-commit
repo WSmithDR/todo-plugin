@@ -1,0 +1,20 @@
+#!/bin/bash
+# Pre-commit hook para el desarrollo del plugin
+# Instalado via: bash bin/dev/setup.sh
+
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+TEST_SCRIPT="$REPO_ROOT/bin/dev/test-hooks.sh"
+
+echo "→ Corriendo tests..."
+
+if bash "$TEST_SCRIPT"; then
+    echo "✓ Tests OK"
+    exit 0
+else
+    echo ""
+    echo "✗ Tests fallaron — commit cancelado."
+    echo "  Corré 'bash bin/dev/test-hooks.sh' para ver el detalle."
+    exit 1
+fi

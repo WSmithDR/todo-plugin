@@ -44,6 +44,39 @@ La versión se incrementa en cada cambio publicado, por lo que si `/todo-health`
 /todo-health
 ```
 
+## Desarrollo del plugin
+
+### Setup inicial (una vez por clon)
+
+```bash
+bash bin/dev/setup.sh
+```
+
+Instala un symlink en `.git/hooks/pre-commit` que corre los tests antes de cada commit, independientemente del editor o CLI que uses.
+
+### Correr tests manualmente
+
+```bash
+bash bin/dev/test-hooks.sh
+```
+
+### Estructura de `bin/`
+
+```
+bin/
+  hooks/       ← scripts del plugin (se envían a usuarios al instalar)
+  dev/
+    git-hooks/ ← hooks de git para desarrollo (versionados, no enviados a usuarios)
+    setup.sh   ← instala el pre-commit hook
+    test-hooks.sh ← suite de tests de los hooks
+```
+
+> Los scripts en `bin/dev/` son solo para desarrollar el plugin y nunca forman parte de lo que el usuario final instala.
+
+### CI
+
+GitHub Actions corre `bin/dev/test-hooks.sh` en cada push y PR a `main`.
+
 ## Skills
 
 | Skill | Descripción |
