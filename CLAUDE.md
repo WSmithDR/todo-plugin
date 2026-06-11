@@ -94,3 +94,17 @@ Editor-agnóstico — corre en cualquier CLI o editor. Se instala automáticamen
 ## Entry point
 
 `todo-agent` is the main orchestrator. For full audits, it delegates to the `todo-audit` subagent which runs in isolation to avoid flooding the main context.
+
+## Catálogo de features compartido
+
+El tooling de infraestructura de este plugin (git hooks de desarrollo, versionado
+automático, hooks de Claude Code, config por proyecto, health check, convenciones de
+docs) proviene del catálogo [`cli-plugin-template`](https://github.com/WSmithDR/cli-plugin-template).
+
+- **Para integrar una mejora del catálogo acá**: leé su `CATALOG.md`, abrí el README
+  del feature y adaptá los archivos.
+- **Si una mejora nacida en este plugin sirve para cualquier plugin**: promovéla al
+  catálogo siguiendo su `CONTRIBUTING.md`, en vez de dejarla solo acá.
+
+Features ya derivados de este plugin: `git-hooks`, `versioning`, `docs-conventions`,
+`claude-code-hooks`, `project-config`, `health-check`.
