@@ -126,7 +126,7 @@ result=$(run_in_tmpdir '
 [ "$result" = "OK" ] && _pass "comando fallido → exit 2 + TODO-ERROR-CHECKER" || _fail "comando fallido → $result"
 
 echo ""
-echo "=== prepare-commit-msg (versionado) ==="
+echo "=== post-commit (versionado) ==="
 
 _test_bump() {
     local label="$1"
@@ -139,13 +139,13 @@ _test_bump() {
         mkdir -p .claude-plugin
         echo '{\"version\":\"$initial\"}' > .claude-plugin/plugin.json
         echo 'x' > file.txt && git add file.txt
-        msg_file=\$(mktemp)
-        echo '$msg' > \"\$msg_file\"
-        out=\$(bash '$GIT_HOOKS_DIR/prepare-commit-msg' \"\$msg_file\" message 2>&1); rc=\$?
+        git commit -q --no-verify -m '$msg'
+        bash '$GIT_HOOKS_DIR/post-commit' > /dev/null 2>&1
         got=\$(python3 -c \"import json; print(json.load(open('.claude-plugin/plugin.json'))['version'])\")
-        [ \$rc -eq 0 ] && [ \"\$got\" = '$expected' ] && echo OK || echo \"rc=\$rc got=\$got out=\$out\"
+        in_commit=\$(git show --name-only HEAD | grep -c 'plugin.json' || true)
+        [ \"\$got\" = '$expected' ] && [ \"\$in_commit\" = '1' ] && echo OK || echo \"got=\$got in_commit=\$in_commit\"
     ")
-    [ "$result" = "OK" ] && _pass "$label ($initial → $expected)" || _fail "$label → $result"
+    [ "$result" = "OK" ] && _pass "$label ($initial → $expected, en commit)" || _fail "$label → $result"
 }
 
 _test_bump "fix: → patch"     "fix: corregir algo"        "1.0.3" "1.0.4"
@@ -154,31 +154,17 @@ _test_bump "chore: → patch"   "chore: actualizar deps"    "1.2.5" "1.2.6"
 _test_bump "docs: → patch"    "docs: actualizar README"   "1.0.3" "1.0.4"
 _test_bump "BREAKING → major" "feat!: romper API"         "1.0.3" "2.0.0"
 
-# Sin source "message" (editor) → no tocar
-result=$(run_in_tmpdir "
-    git init -q && git config user.email 't@t.com' && git config user.name 'T'
-    mkdir -p .claude-plugin
-    echo '{\"version\":\"1.0.0\"}' > .claude-plugin/plugin.json
-    msg_file=\$(mktemp) && echo 'feat: algo' > \"\$msg_file\"
-    bash '$GIT_HOOKS_DIR/prepare-commit-msg' \"\$msg_file\" template 2>&1
-    got=\$(python3 -c \"import json; print(json.load(open('.claude-plugin/plugin.json'))['version'])\")
-    [ \"\$got\" = '1.0.0' ] && echo OK || echo \"got=\$got\"
-")
-[ "$result" = "OK" ] && _pass "source != message (editor) → sin cambios" || _fail "source != message → $result"
-
-# plugin.json staged manualmente → no tocar
+# plugin.json ya en commit (bump manual) → no tocar
 result=$(run_in_tmpdir "
     git init -q && git config user.email 't@t.com' && git config user.name 'T'
     mkdir -p .claude-plugin
     echo '{\"version\":\"9.9.9\"}' > .claude-plugin/plugin.json
-    git add .claude-plugin/plugin.json
-    echo 'x' > file.txt && git add file.txt
-    msg_file=\$(mktemp) && echo 'fix: algo' > \"\$msg_file\"
-    bash '$GIT_HOOKS_DIR/prepare-commit-msg' \"\$msg_file\" message 2>&1
+    git add .claude-plugin/plugin.json && git commit -q --no-verify -m 'fix: algo'
+    bash '$GIT_HOOKS_DIR/post-commit' 2>&1
     got=\$(python3 -c \"import json; print(json.load(open('.claude-plugin/plugin.json'))['version'])\")
     [ \"\$got\" = '9.9.9' ] && echo OK || echo \"got=\$got\"
 ")
-[ "$result" = "OK" ] && _pass "plugin.json staged manualmente → sin cambios" || _fail "plugin.json staged manualmente → $result"
+[ "$result" = "OK" ] && _pass "plugin.json en commit → sin cambios" || _fail "plugin.json en commit → $result"
 
 echo ""
 echo "Resultado: $PASS passed, $FAIL failed"

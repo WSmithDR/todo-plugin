@@ -1,0 +1,73 @@
+#!/bin/bash
+# post-commit: auto-bump version en .claude-plugin/plugin.json y amenda el commit.
+#
+# Corre después del commit → lee el mensaje, calcula el bump, amenda con --no-verify.
+# El --no-verify es seguro porque los tests ya corrieron en pre-commit.
+#
+# feat:              → minor
+# fix|chore|docs|... → patch
+# BREAKING (en msg)  → major
+
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+PLUGIN_JSON="$REPO_ROOT/.claude-plugin/plugin.json"
+
+[ ! -f "$PLUGIN_JSON" ] && exit 0
+
+# Si plugin.json ya está en el commit (bump manual o amend previo), no tocar
+if git show --name-only HEAD | grep -q "\.claude-plugin/plugin\.json"; then
+    exit 0
+fi
+
+MSG=$(git log -1 --pretty=%B)
+
+# Determinar tipo de bump
+if echo "$MSG" | grep -qiE "(BREAKING[ -]CHANGE|^.+!:)"; then
+    BUMP="major"
+elif echo "$MSG" | grep -qiE "^feat(\(.+\))?:"; then
+    BUMP="minor"
+else
+    BUMP="patch"
+fi
+
+# Leer y validar versión actual
+CURRENT=$(PLUGIN_JSON="$PLUGIN_JSON" python3 -c '
+import json, os, re, sys
+path = os.environ["PLUGIN_JSON"]
+v = json.load(open(path))["version"]
+if not re.fullmatch(r"\d+\.\d+\.\d+", v):
+    sys.exit("version inválida en plugin.json: " + v)
+print(v)
+')
+
+# Calcular nueva versión
+NEW=$(CURRENT="$CURRENT" BUMP="$BUMP" python3 -c '
+import os
+major, minor, patch = map(int, os.environ["CURRENT"].split("."))
+bump = os.environ["BUMP"]
+if bump == "major":
+    major += 1; minor = 0; patch = 0
+elif bump == "minor":
+    minor += 1; patch = 0
+else:
+    patch += 1
+print(f"{major}.{minor}.{patch}")
+')
+
+# Escribir versión actualizada
+PLUGIN_JSON="$PLUGIN_JSON" NEW="$NEW" python3 -c '
+import json, os
+path = os.environ["PLUGIN_JSON"]
+new_version = os.environ["NEW"]
+with open(path) as f:
+    d = json.load(f)
+d["version"] = new_version
+with open(path, "w") as f:
+    json.dump(d, f, indent=2)
+    f.write("\n")
+'
+
+git add "$PLUGIN_JSON"
+git commit --amend --no-edit --no-verify
+echo "  version: $CURRENT → $NEW ($BUMP)"
