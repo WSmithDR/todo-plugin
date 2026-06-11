@@ -166,6 +166,20 @@ result=$(run_in_tmpdir "
 ")
 [ "$result" = "OK" ] && _pass "plugin.json en commit → sin cambios" || _fail "plugin.json en commit → $result"
 
+# Hook INSTALADO + commit real → bump exactamente UNA vez (no recursión por el amend)
+result=$(run_in_tmpdir "
+    git init -q && git config user.email 't@t.com' && git config user.name 'T'
+    mkdir -p .claude-plugin .git/hooks
+    echo '{\"version\":\"1.0.0\"}' > .claude-plugin/plugin.json
+    cp '$GIT_HOOKS_DIR/post-commit' .git/hooks/post-commit
+    chmod +x .git/hooks/post-commit
+    echo 'x' > file.txt && git add file.txt
+    git commit -q --no-verify -m 'fix: algo' > /dev/null 2>&1
+    got=\$(python3 -c \"import json; print(json.load(open('.claude-plugin/plugin.json'))['version'])\")
+    [ \"\$got\" = '1.0.1' ] && echo OK || echo \"got=\$got (esperado 1.0.1 — un solo bump)\"
+")
+[ "$result" = "OK" ] && _pass "hook instalado + commit real → bump único (sin recursión)" || _fail "recursión → $result"
+
 echo ""
 echo "Resultado: $PASS passed, $FAIL failed"
 [ $FAIL -eq 0 ] && exit 0 || exit 1

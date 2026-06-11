@@ -12,11 +12,19 @@ set -euo pipefail
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 PLUGIN_JSON="$REPO_ROOT/.claude-plugin/plugin.json"
+SENTINEL="$REPO_ROOT/.git/.version-bump-in-progress"
+
+# Recursion guard: el `git commit --amend` de más abajo re-dispara post-commit
+# (--no-verify NO saltea post-commit). El sentinel frena la segunda invocación.
+if [ -f "$SENTINEL" ]; then
+    rm -f "$SENTINEL"
+    exit 0
+fi
 
 [ ! -f "$PLUGIN_JSON" ] && exit 0
 
-# Si plugin.json ya está en el commit (bump manual o amend previo), no tocar
-if git show --name-only HEAD | grep -q "\.claude-plugin/plugin\.json"; then
+# Bump manual: plugin.json ya está en este commit → no tocar
+if git show --name-only --format="" HEAD | grep -qx "\.claude-plugin/plugin\.json"; then
     exit 0
 fi
 
@@ -69,5 +77,7 @@ with open(path, "w") as f:
 '
 
 git add "$PLUGIN_JSON"
+touch "$SENTINEL"
 git commit --amend --no-edit --no-verify
+rm -f "$SENTINEL"
 echo "  version: $CURRENT → $NEW ($BUMP)"
