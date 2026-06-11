@@ -73,6 +73,19 @@ bin/
 
 > Los scripts en `bin/dev/` son solo para desarrollar el plugin y nunca forman parte de lo que el usuario final instala.
 
+### Conventional commits y versionado
+
+El hook `commit-msg` bumpeaa la versión en `.claude-plugin/plugin.json` automáticamente según el prefijo del mensaje:
+
+| Prefijo | Ejemplo | Bump |
+|---|---|---|
+| `feat:` | `feat: agregar skill todo-config` | minor |
+| `fix:` | `fix: corregir exit code en pre-commit` | patch |
+| `chore:`, `docs:`, `refactor:`, `style:`, `test:`, `ci:` | `docs: actualizar README` | patch |
+| `feat!:` o `BREAKING CHANGE` en el cuerpo | `feat!: cambiar formato de config.json` | major |
+
+Si modificás `plugin.json` manualmente antes de commitear, el hook no toca la versión.
+
 ### CI
 
 GitHub Actions corre `bin/dev/test-hooks.sh` en cada push y PR a `main`.
