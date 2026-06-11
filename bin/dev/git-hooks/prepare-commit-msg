@@ -37,35 +37,42 @@ else
     BUMP="patch"
 fi
 
-# Leer versión actual
-CURRENT=$(python3 -c "
-import json
-print(json.load(open('$PLUGIN_JSON'))['version'])
-")
+# Leer versión actual (env var para evitar interpolación en código Python)
+CURRENT=$(PLUGIN_JSON="$PLUGIN_JSON" python3 -c '
+import json, os, re, sys
+path = os.environ["PLUGIN_JSON"]
+v = json.load(open(path))["version"]
+if not re.fullmatch(r"\d+\.\d+\.\d+", v):
+    sys.exit("version inválida en plugin.json: " + v)
+print(v)
+')
 
 # Calcular nueva versión
-NEW=$(python3 -c "
-major, minor, patch = map(int, '$CURRENT'.split('.'))
-bump = '$BUMP'
-if bump == 'major':
+NEW=$(CURRENT="$CURRENT" BUMP="$BUMP" python3 -c '
+import os
+major, minor, patch = map(int, os.environ["CURRENT"].split("."))
+bump = os.environ["BUMP"]
+if bump == "major":
     major += 1; minor = 0; patch = 0
-elif bump == 'minor':
+elif bump == "minor":
     minor += 1; patch = 0
 else:
     patch += 1
-print(f'{major}.{minor}.{patch}')
-")
+print(f"{major}.{minor}.{patch}")
+')
 
 # Escribir versión actualizada
-python3 -c "
-import json
-with open('$PLUGIN_JSON') as f:
+PLUGIN_JSON="$PLUGIN_JSON" NEW="$NEW" python3 -c '
+import json, os
+path = os.environ["PLUGIN_JSON"]
+new_version = os.environ["NEW"]
+with open(path) as f:
     d = json.load(f)
-d['version'] = '$NEW'
-with open('$PLUGIN_JSON', 'w') as f:
+d["version"] = new_version
+with open(path, "w") as f:
     json.dump(d, f, indent=2)
-    f.write('\n')
-"
+    f.write("\n")
+'
 
 git add "$PLUGIN_JSON"
 echo "  version: $CURRENT → $NEW ($BUMP)"
