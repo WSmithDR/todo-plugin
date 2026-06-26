@@ -68,10 +68,14 @@ Proceed only if the user confirms.
 
 ### 4. Move the item
 
-Remove the full item block from `.todo/TODO.md` (including its indented options/recommendation/clarifications) and append it to `.todo/DOING.md` preserving the creator metadata and adding an `_(iniciado: YYYY-MM-DD)_` note:
+Remove the full item block from `.todo/TODO.md` (including its indented options/recommendation/clarifications) and append it to `.todo/DOING.md` preserving the creator metadata and adding an `iniciado:` timestamp (precise — con hora, para poder calcular duración después):
+
+```bash
+INICIADO=$(date -Iminutes)   # p.ej. 2026-06-26T14:32-05:00
+```
 
 ```markdown
-- [ ] **[Título]** — [descripción] _(creado por: GitName · YYYY-MM-DD | iniciado: YYYY-MM-DD)_
+- [ ] **[Título]** — [descripción] _(creado por: GitName · YYYY-MM-DD | iniciado: 2026-06-26T14:32-05:00)_
   - _Opción A:_ [...]
   - _Opción B:_ [...]
   - **Recomendación: A** — [...]
@@ -80,10 +84,10 @@ Remove the full item block from `.todo/TODO.md` (including its indented options/
 If the item has no options yet:
 
 ```markdown
-- [ ] **[Título]** — [descripción] _(creado por: GitName · YYYY-MM-DD | iniciado: YYYY-MM-DD)_
+- [ ] **[Título]** — [descripción] _(creado por: GitName · YYYY-MM-DD | iniciado: 2026-06-26T14:32-05:00)_
 ```
 
-The creator info is read from the existing item's `_(creado por: ...)_` tag — preserve it exactly. The `iniciado:` date is today's date.
+The creator info is read from the existing item's `_(creado por: ...)_` tag — preserve it exactly. The `iniciado:` value is `date -Iminutes` (timestamp ISO con hora y zona), no solo la fecha — bitacora lo usa para estimar cuánto llevó la tarea.
 
 ### 5. Update dates
 

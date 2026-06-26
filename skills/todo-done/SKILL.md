@@ -102,18 +102,24 @@ Matching rules:
 
 Remove the item (including its indented options/recommendation) from `.todo/TODO.md` or `.todo/DOING.md` and append to `.todo/DONE.md`:
 
+```bash
+RESUELTO=$(date -Iminutes)   # fin preciso, p.ej. 2026-06-26T18:10-05:00
+```
+
 ```markdown
-- [x] **[Item title]** — [original description] _(creado por: GitName · YYYY-MM-DD)_ ✓ _resuelto: [brief note of how] — responsable: Name1, Name2 · YYYY-MM-DD_
+- [x] **[Item title]** — [original description] _(creado por: GitName · YYYY-MM-DD | iniciado: <ISO>)_ ✓ _resuelto: [brief note of how] — responsable: Name1, Name2 · 2026-06-26T18:10-05:00_
 ```
 
 - `responsable:` lists all contributors from Step 3, comma-separated
 - If only one contributor, still use the `responsable:` label
 - The creation date and creator are preserved from the original item's metadata
+- **Conservá el `| iniciado: <ISO>`** del ítem (si venía de DOING.md ya lo trae) dentro del bloque `_(creado por: ...)_`. Sin él, bitacora no puede estimar la duración. Si el ítem se cierra directo desde TODO.md (nunca pasó por DOING, no tiene `iniciado:`), no agregues nada — bitacora usará la fecha de creación como fallback.
+- La fecha de `resuelto:` (tras `responsable: … ·`) es `date -Iminutes` (timestamp con hora), no solo la fecha.
 
 Examples:
-- `_(creado por: SmithDR · 2026-05-10)_ ✓ _resuelto: TZ=America/Santiago en .env — responsable: SmithDR · 2026-06-09_`
-- `_(creado por: Alice · 2026-04-01)_ ✓ _resuelto: implementado en commit a3f9b2c — responsable: Alice, Bob · 2026-06-09_`
-- `_(creado por: SmithDR · 2026-05-20)_ ✓ _resuelto: según descripción del usuario — responsable: SmithDR · 2026-06-09_`
+- `_(creado por: SmithDR · 2026-05-10 | iniciado: 2026-06-09T09:15-05:00)_ ✓ _resuelto: TZ=America/Santiago en .env — responsable: SmithDR · 2026-06-09T11:40-05:00_`
+- `_(creado por: Alice · 2026-04-01 | iniciado: 2026-06-08T14:00-05:00)_ ✓ _resuelto: implementado en commit a3f9b2c — responsable: Alice, Bob · 2026-06-09T17:20-05:00_`
+- `_(creado por: SmithDR · 2026-05-20)_ ✓ _resuelto: según descripción del usuario — responsable: SmithDR · 2026-06-09T10:05-05:00_` _(cerrada directo de TODO, sin `iniciado`)_
 
 ### 6. Move discarded items to .todo/DISCARDED.md
 
