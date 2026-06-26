@@ -32,14 +32,19 @@ actúa ante comandos de rama, aquel solo ante fallos).
    después del comando; no se parsea el string). Si es base (`main`/`master`/`develop`) o
    `HEAD` (detached) → `exit 0`.
 5. Si es rama de feature → `exit 2` con la directiva a stderr:
-   > Estás en la rama `<rama>`. Si la tarea en la que trabajás todavía no está en
-   > `.todo/DOING.md`, movela ahora con la skill `todo-doing` (DOING.md es la fuente de
-   > verdad de lo en progreso). Si ya está en DOING, ignorá esto. Si aún no existe en
-   > TODO.md, agregala primero.
+   > Estás en la rama `<rama>`. Asegurate de que la(s) tarea(s) que vas a trabajar en esta
+   > rama estén en `.todo/DOING.md` (una rama puede abarcar varias). Mové las que falten con
+   > `todo-doing`; ignorá las que ya estén; agregá a TODO.md las que aún no existan.
 
-**Idempotencia sin estado:** la directiva misma instruye "si ya está en DOING, ignorá", así
-que re-cambiar a la misma rama no genera trabajo duplicado. No hace falta archivo de estado
-ni recordar ramas ya disparadas.
+**Alcance — ramas multi-tarea:** el disparador es el comando de rama, así que el hook empuja
+al **arrancar** la rama (cubre el olvido más común). Si una rama abarca varias tareas que se
+inician *a lo largo* de la rama, las posteriores **no** disparan el hook (no hay evento de git
+ni señal automática confiable para "empecé otra tarea en la misma rama") → esas se mueven a
+mano con `todo-doing` on-demand. El hook no molesta en ese caso, solo cubre menos.
+
+**Idempotencia sin estado:** la directiva misma instruye "ignorá las que ya estén en DOING",
+así que re-cambiar a la misma rama no genera trabajo duplicado. No hace falta archivo de
+estado ni recordar ramas ya disparadas.
 
 ## Casos borde
 

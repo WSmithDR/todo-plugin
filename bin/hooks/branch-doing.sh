@@ -33,8 +33,11 @@ case "$BRANCH" in
 esac
 
 echo "TODO-DOING: Estás en la rama de feature '$BRANCH'.
-Si la tarea en la que estás trabajando todavía no está en .todo/DOING.md, movela ahora
-con la skill todo-doing (DOING.md es la fuente de verdad de lo en progreso).
-  → Si ya está en DOING.md: ignorá esto.
-  → Si todavía no existe en .todo/TODO.md: agregala primero y luego movela." >&2
+Asegurate de que la(s) tarea(s) que vas a trabajar en esta rama estén en .todo/DOING.md
+(una rama puede abarcar varias). Mové las que falten con la skill todo-doing (DOING.md es
+la fuente de verdad de lo en progreso).
+  → Las que ya estén en DOING.md: ignoralas.
+  → Las que aún no existan en .todo/TODO.md: agregalas primero y luego movelas.
+Nota: este aviso solo dispara al crear/cambiar de rama; si más adelante arrancás otra tarea
+en esta misma rama, movela vos con todo-doing (no hay señal automática para eso)." >&2
 exit 2
