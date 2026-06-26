@@ -17,6 +17,10 @@
           {
             "type": "command",
             "command": "bash ${CLAUDE_PLUGIN_ROOT}/bin/hooks/error-checker.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/bin/hooks/branch-doing.sh"
           }
         ]
       }

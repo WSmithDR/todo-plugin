@@ -126,6 +126,50 @@ result=$(run_in_tmpdir '
 [ "$result" = "OK" ] && _pass "comando fallido → exit 2 + TODO-ERROR-CHECKER" || _fail "comando fallido → $result"
 
 echo ""
+echo "=== branch-doing.sh ==="
+
+# git checkout -b a rama feature con .todo/ → exit 2 + TODO-DOING + nombre de rama
+result=$(run_in_tmpdir '
+    git init -q -b main && git config user.email "t@t.com" && git config user.name "T"
+    git commit -q --allow-empty -m init
+    mkdir -p .todo && git checkout -q -b feat/cobranzas
+    input='"'"'{"tool_input":{"command":"git checkout -b feat/cobranzas"}}'"'"'
+    err=$(echo "$input" | bash '"$HOOKS_DIR"'/branch-doing.sh 2>&1); rc=$?
+    [ $rc -eq 2 ] && echo "$err" | grep -q "TODO-DOING" && echo "$err" | grep -q "feat/cobranzas" && echo OK || echo "rc=$rc err=$err"
+')
+[ "$result" = "OK" ] && _pass "checkout -b feature → exit 2 + TODO-DOING" || _fail "checkout -b feature → $result"
+
+# En rama base (main) → exit 0 silencioso
+result=$(run_in_tmpdir '
+    git init -q -b main && git config user.email "t@t.com" && git config user.name "T"
+    git commit -q --allow-empty -m init && mkdir -p .todo
+    input='"'"'{"tool_input":{"command":"git switch main"}}'"'"'
+    out=$(echo "$input" | bash '"$HOOKS_DIR"'/branch-doing.sh 2>&1); rc=$?
+    [ $rc -eq 0 ] && [ -z "$out" ] && echo OK || echo "rc=$rc out=$out"
+')
+[ "$result" = "OK" ] && _pass "en main → exit 0 silencioso" || _fail "en main → $result"
+
+# Sin .todo/ → exit 0 silencioso (aunque sea rama feature)
+result=$(run_in_tmpdir '
+    git init -q -b main && git config user.email "t@t.com" && git config user.name "T"
+    git commit -q --allow-empty -m init && git checkout -q -b feat/x
+    input='"'"'{"tool_input":{"command":"git checkout -b feat/x"}}'"'"'
+    out=$(echo "$input" | bash '"$HOOKS_DIR"'/branch-doing.sh 2>&1); rc=$?
+    [ $rc -eq 0 ] && [ -z "$out" ] && echo OK || echo "rc=$rc out=$out"
+')
+[ "$result" = "OK" ] && _pass "sin .todo/ → exit 0 silencioso" || _fail "sin .todo/ → $result"
+
+# Comando que no cambia de rama (checkout de archivo) en feature → exit 0 silencioso
+result=$(run_in_tmpdir '
+    git init -q -b main && git config user.email "t@t.com" && git config user.name "T"
+    git commit -q --allow-empty -m init && mkdir -p .todo && git checkout -q -b feat/x
+    input='"'"'{"tool_input":{"command":"git checkout README.md"}}'"'"'
+    out=$(echo "$input" | bash '"$HOOKS_DIR"'/branch-doing.sh 2>&1); rc=$?
+    [ $rc -eq 0 ] && [ -z "$out" ] && echo OK || echo "rc=$rc out=$out"
+')
+[ "$result" = "OK" ] && _pass "checkout de archivo → exit 0 silencioso" || _fail "checkout de archivo → $result"
+
+echo ""
 echo "=== post-commit (versionado) ==="
 
 _test_bump() {

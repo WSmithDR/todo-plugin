@@ -76,7 +76,8 @@ All task files live under `.todo/` in the project root — never at the root lev
 | Hook | Trigger | Acción |
 |---|---|---|
 | `SessionStart` | Inicio de sesión | Instala el git pre-commit hook si no existe; detecta `.todo/` sin `config.json` y solicita `todo-config` |
-| `PostToolUse(Bash)` | Comando bash fallido | Evalúa si el error merece abrir una tarea en TODO.md |
+| `PostToolUse(Bash)` | Comando bash fallido | Evalúa si el error merece abrir una tarea en TODO.md (`error-checker.sh`) |
+| `PostToolUse(Bash)` | `git switch` / `git checkout -b` a rama de feature | Recuerda mover la tarea en curso a DOING.md vía `todo-doing` (enforcement suave, `branch-doing.sh`) |
 
 ### Git hook (`bin/hooks/pre-commit.sh`)
 
