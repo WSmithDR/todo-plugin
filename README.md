@@ -52,7 +52,7 @@ Los archivos de tareas viven en `.todo/` en la raíz del proyecto: `TODO.md`, `D
 tienen un `.todo/` local. En su lugar, el plugin usa un registro central:
 `~/.local/share/todo/` es un único repo git con un subdirectorio `<id>/.todo/` por
 proyecto. Al ejecutar un skill fuera de un repo, se elige el proyecto desde un menú
-(o se crea uno nuevo). Identidad = nombre + id; el cwd no se toca.
+(o se crea uno nuevo). Identidad = nombre + id; no se crean archivos en el cwd.
 
 ## Desarrollo del plugin
 

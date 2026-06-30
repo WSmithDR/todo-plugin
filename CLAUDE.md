@@ -47,7 +47,7 @@ All task files live under `.todo/` in the project root — never at the root lev
 tienen un `.todo/` local. En su lugar, el plugin mantiene un registro central:
 `~/.local/share/todo/` es un único repo git con un subdirectorio `<id>/.todo/` por
 proyecto. Al ejecutar un skill fuera de un repo, se elige el proyecto desde un menú
-(o se crea uno nuevo). Identidad = nombre + id; el cwd no se toca.
+(o se crea uno nuevo). Identidad = nombre + id; no se crean archivos en el cwd.
 
 | File | Purpose |
 |---|---|
