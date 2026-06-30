@@ -9,6 +9,38 @@ Adds a new item to `.todo/TODO.md` with proper formatting, including creator met
 
 ## Process
 
+### 0a. Resolver el proyecto (repo vs registro central)
+
+Determinar el modo:
+
+```bash
+MODE=$("${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" mode)
+echo "$MODE"
+```
+
+- Si `MODE` es `repo`: continuar normalmente (las tareas viven en el `.todo/` de este repo). Saltar al paso 0.
+- Si `MODE` es `nonrepo`: no hay repositorio, las tareas van al registro central. Listar proyectos:
+
+```bash
+"${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" list
+```
+
+Mostrar con `AskUserQuestion` un menú: una opción por cada proyecto listado (usar el `<name>`), más una opción **"➕ Nuevo proyecto"**.
+
+- Si el usuario elige **"➕ Nuevo proyecto"**: pedirle el nombre y crearlo:
+
+```bash
+NEW_ID=$("${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" create "<nombre dado>")
+```
+
+- Si elige un proyecto existente: tomar su `<id>` de la lista.
+
+Posicionarse en el store del proyecto (a partir de acá el resto del skill corre tal cual, con `.todo/` relativo y `git commit` sobre el repo central):
+
+```bash
+cd "$("${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" path "<id elegido o NEW_ID>")"
+```
+
 ### 0. Check plugin config
 
 ```bash
