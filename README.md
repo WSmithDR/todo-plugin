@@ -123,7 +123,12 @@ GitHub Actions corre `bin/dev/test-hooks.sh` en cada push y PR a `main`.
 |---|---|---|
 | `SessionStart` | Inicio de sesión | Instala el git pre-commit hook si no existe; detecta `.todo/` sin `config.json` y solicita `todo-config` |
 | `PostToolUse(Bash)` | Comando bash fallido | Evalúa si el error merece abrir una tarea en TODO.md |
+| `PreToolUse(Edit/Write/MultiEdit/Bash)` | Edición de un `.todo/` | Bloquea la edición directa fuera de un skill; los skills abren una ventana de escritura de 5 min. Bypass: `TODO_GUARD=off` |
 
 ### Git (`bin/hooks/pre-commit.sh`)
 
 Editor-agnóstico — corre en cualquier CLI o editor. Se instala automáticamente en la primera sesión del proyecto via `SessionStart`. Bloquea `git commit` si hay tareas en DOING.md que podrían estar resueltas por los cambios en staging.
+
+### Guard de edición directa (`bin/todo-guard.sh`)
+
+Bloquea ediciones directas a `.todo/` fuera de un skill. Los skills abren una ventana de escritura de 5 min; para editar manualmente usá `TODO_GUARD=off` o editá en tu editor fuera de Claude.

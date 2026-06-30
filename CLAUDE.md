@@ -84,10 +84,19 @@ proyecto. Al ejecutar un skill fuera de un repo, se elige el proyecto desde un m
 | `SessionStart` | Inicio de sesión | Instala el git pre-commit hook si no existe; detecta `.todo/` sin `config.json` y solicita `todo-config` |
 | `PostToolUse(Bash)` | Comando bash fallido | Evalúa si el error merece abrir una tarea en TODO.md (`error-checker.sh`) |
 | `PostToolUse(Bash)` | `git switch` / `git checkout -b` a rama de feature | Recuerda mover la tarea en curso a DOING.md vía `todo-doing` (enforcement suave, `branch-doing.sh`) |
+| `PreToolUse(Edit/Write/MultiEdit/Bash)` | Edición de un `.todo/` | Bloquea la edición directa fuera de un skill; los skills abren una ventana de escritura (`todo-guard.sh`). Bypass: `TODO_GUARD=off` |
 
 ### Git hook (`bin/hooks/pre-commit.sh`)
 
 Editor-agnóstico — corre en cualquier CLI o editor. Se instala automáticamente via `SessionStart` en la primera sesión del proyecto. Bloquea `git commit` si hay tareas en DOING.md que podrían estar resueltas por los cambios en staging.
+
+### Guard de edición directa (`bin/todo-guard.sh`)
+
+Para mantener la consistencia del formato, toda mutación de `.todo/` debe pasar
+por un skill. Un hook `PreToolUse` bloquea ediciones directas (Edit/Write/Bash)
+de `.todo/` salvo dentro de la ventana de 5 min que cada skill abre al ejecutarse.
+Para editar a mano puntualmente, exportá `TODO_GUARD=off` (o editá el archivo en
+tu editor, fuera de Claude).
 
 ## Task format
 
