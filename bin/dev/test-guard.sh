@@ -40,17 +40,24 @@ rm -f "$WINDOW"
 # 5. Bash que solo lee .todo → permite
 [ "$(run on "$(bash_payload 'cat .todo/TODO.md')")" = "0" ] || fail "cat .todo debía permitir"
 
+# 5b. Bash que lee .todo pero redirige fuera: bloqueado (false positive por diseño, spec-mandated)
+[ "$(run on "$(bash_payload 'grep foo .todo/TODO.md > /tmp/out.txt')")" = "2" ] \
+  || fail "grep .todo > /tmp: se espera bloqueo por la heurística (FP de redirect cruzado, spec-mandated)"
+
 # 6. Bypass TODO_GUARD=off + Edit .todo sin ventana → permite
 rm -f "$WINDOW"
 [ "$(run off "$(edit_payload Edit /proj/.todo/TODO.md)")" = "0" ] || fail "bypass debía permitir"
 
 # 7. Ventana vieja (>5 min) → bloquea
 bash "$GUARD" open
-touch -d '10 minutes ago' "$WINDOW"
+python3 -c "import os,time; os.utime('$WINDOW', (time.time()-600, time.time()-600))"
 [ "$(run on "$(edit_payload Edit /proj/.todo/TODO.md)")" = "2" ] || fail "ventana vieja debía bloquear"
 
 # 8. MultiEdit sobre .todo sin ventana → bloquea
 rm -f "$WINDOW"
 [ "$(run on "$(edit_payload MultiEdit /proj/.todo/DOING.md)")" = "2" ] || fail "MultiEdit .todo sin ventana debía bloquear"
+
+# 9. Payload vacío/no-JSON → permite (fail-open seguro)
+[ "$(run on "")" = "0" ] || fail "payload vacío debía permitir (fail-open)"
 
 echo "OK: todo-guard.sh"
