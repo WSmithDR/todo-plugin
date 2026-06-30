@@ -11,23 +11,37 @@ Orchestrates four skills in sequence for a single new item. Run them in order �
 
 ### 0a. Resolver el proyecto (repo vs registro central)
 
+Determinar el modo:
+
 ```bash
 MODE=$("${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" mode)
 echo "$MODE"
 ```
 
-- Si `MODE` es `repo`: continuar normalmente.
-- Si `MODE` es `nonrepo`: listar proyectos y elegir cuál operar (solo existentes; este skill no crea proyectos):
+- Si `MODE` es `repo`: continuar normalmente (las tareas viven en el `.todo/` de este repo).
+- Si `MODE` es `nonrepo`: no hay repositorio, las tareas van al registro central. Listar proyectos:
 
 ```bash
 "${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" list
 ```
 
-Mostrar con `AskUserQuestion` un menú con una opción por proyecto (usar el `<name>`). Si la lista está vacía, informar que no hay proyectos registrados y terminar. Luego posicionarse:
+Mostrar con `AskUserQuestion` un menú: una opción por cada proyecto listado (usar el `<name>`), más una opción **"➕ Nuevo proyecto"**.
+
+- Si el usuario elige **"➕ Nuevo proyecto"**: pedirle el nombre y crearlo:
 
 ```bash
-cd "$("${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" path "<id elegido>")"
+NEW_ID=$("${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" create "<nombre dado>")
 ```
+
+- Si elige un proyecto existente: tomar su `<id>` de la lista.
+
+Posicionarse en el store del proyecto:
+
+```bash
+cd "$("${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" path "<id elegido o NEW_ID>")"
+```
+
+> Resolvé el proyecto UNA SOLA VEZ acá. Al delegar a todo-add / todo-solutions / todo-recommend / todo-clarify NO vuelvas a mostrar el menú de proyectos: ya estás posicionado en el store del proyecto y esos skills operan sobre el `.todo/` del directorio actual.
 
 ## Sequence
 
