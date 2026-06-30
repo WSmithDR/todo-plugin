@@ -124,6 +124,12 @@ Within each quadrant, order by impact descending.
 
 ### 5. Write .todo/TODO.md
 
+Re-abrir la ventana antes de escribir — el análisis puede tardar más que la ventana:
+
+```bash
+"${CLAUDE_PLUGIN_ROOT}/bin/todo-guard.sh" open
+```
+
 Ensure the `.todo/` directory exists:
 ```bash
 mkdir -p .todo

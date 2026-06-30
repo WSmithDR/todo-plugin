@@ -40,17 +40,25 @@ rm -f "$WINDOW"
 # 5. Bash que solo lee .todo → permite
 [ "$(run on "$(bash_payload 'cat .todo/TODO.md')")" = "0" ] || fail "cat .todo debía permitir"
 
-# 5b. Bash que lee .todo pero redirige fuera: bloqueado (false positive por diseño, spec-mandated)
-[ "$(run on "$(bash_payload 'grep foo .todo/TODO.md > /tmp/out.txt')")" = "2" ] \
-  || fail "grep .todo > /tmp: se espera bloqueo por la heurística (FP de redirect cruzado, spec-mandated)"
+# 5b. Lectura con redirect fuera de .todo → permitido
+[ "$(run on "$(bash_payload 'grep foo .todo/TODO.md > /tmp/out.txt')")" = "0" ] \
+  || fail "grep .todo > /tmp: lectura con redirect fuera de .todo debía permitir"
+
+# 5c. cat .todo con stderr redirect fuera → permite
+[ "$(run on "$(bash_payload 'cat .todo/TODO.md 2>/dev/null')")" = "0" ] \
+  || fail "cat .todo 2>/dev/null debía permitir"
+
+# 5d. echo redirigido a .todo/ SIN ventana → bloquea
+[ "$(run on "$(bash_payload 'echo x > .todo/TODO.md')")" = "2" ] \
+  || fail "echo x > .todo/TODO.md sin ventana debía bloquear"
 
 # 6. Bypass TODO_GUARD=off + Edit .todo sin ventana → permite
 rm -f "$WINDOW"
 [ "$(run off "$(edit_payload Edit /proj/.todo/TODO.md)")" = "0" ] || fail "bypass debía permitir"
 
-# 7. Ventana vieja (>5 min) → bloquea
+# 7. Ventana vieja (>10 min) → bloquea
 bash "$GUARD" open
-python3 -c "import os,time; os.utime('$WINDOW', (time.time()-600, time.time()-600))"
+python3 -c "import os,time; os.utime('$WINDOW', (time.time()-1200, time.time()-1200))"
 [ "$(run on "$(edit_payload Edit /proj/.todo/TODO.md)")" = "2" ] || fail "ventana vieja debía bloquear"
 
 # 8. MultiEdit sobre .todo sin ventana → bloquea

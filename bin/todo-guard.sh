@@ -4,7 +4,7 @@
 set -uo pipefail
 GUARD_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/todo-plugin"
 WINDOW="$GUARD_DIR/window"
-WINDOW_MIN=5
+WINDOW_MIN=10
 
 if [ "${1:-check}" = "open" ]; then
     mkdir -p "$GUARD_DIR"; touch "$WINDOW"; exit 0
@@ -30,7 +30,7 @@ if tool in ("Edit","Write","MultiEdit"):
 if tool=="Bash":
     cmd=ti.get("command","") or ""
     touches=".todo/" in cmd
-    writes=bool(re.search(r"sed +-i|>>?|tee|(^|\s)(cp|mv|rm)\s|open\([^)]*[\x27\x22]w", cmd))
+    writes=bool(re.search(r"sed +-i|>>?\s*\S*\.todo/|tee|(^|\s)(cp|mv|rm)\s|open\([^)]*[\x27\x22]w", cmd))
     sys.exit(0 if (touches and writes) else 1)
 sys.exit(1)
 '; then

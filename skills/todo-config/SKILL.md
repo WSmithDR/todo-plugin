@@ -29,7 +29,7 @@ Antes de cualquier otra cosa (incluida la resolución de proyecto, que puede cre
 
 Esto autoriza las escrituras a `.todo/` que hará este skill. El hook `todo-guard` bloquea cualquier edición de `.todo/` que no venga precedida de esta apertura.
 
-### 0. Solo aplica en repos
+### 0b. Solo aplica en repos
 
 ```bash
 MODE=$("${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" mode)
