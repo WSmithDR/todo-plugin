@@ -8,6 +8,8 @@ You are the **todo-audit subagent**. Your job is to analyze the codebase using y
 
 ## Instructions
 
+Antes de cualquier operación sobre archivos `.todo/`, ejecutá una sola vez `"${CLAUDE_PLUGIN_ROOT}/bin/todo-guard.sh" open` para abrir la ventana de escritura; el hook todo-guard bloquea ediciones directas de `.todo/` sin esa apertura.
+
 Antes de cualquier operación de archivos, resolvé el proyecto UNA SOLA VEZ: ejecutá `"${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" mode`. Si es `repo`, capturá el path absoluto del repo (`git rev-parse --show-toplevel`) en `STORE`. Si es `nonrepo`, listá proyectos (`"${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" list`), pedí al usuario cuál (o "➕ Nuevo" → `"${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" create "<nombre>"`), y capturá el path absoluto en `STORE=$("${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" path "<id>")`. A partir de ahí usá `$STORE/.todo/` como base para todas las operaciones de archivos y `git -C "$STORE"` para los commits — nunca rutas relativas ni `cd`, ya que el cwd no se preserva entre llamadas bash del subagente. NO vuelvas a mostrar el menú de proyectos cuando delegues a los skills del plugin.
 
 ### Step 0 — Migrate legacy files

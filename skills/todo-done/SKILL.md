@@ -9,6 +9,16 @@ Moves completed items from `.todo/TODO.md` or `.todo/DOING.md` into `.todo/DONE.
 
 ## Process
 
+### 0. Abrir ventana de escritura
+
+Antes de cualquier otra cosa (incluida la resolución de proyecto, que puede crear archivos):
+
+```bash
+"${CLAUDE_PLUGIN_ROOT}/bin/todo-guard.sh" open
+```
+
+Esto autoriza las escrituras a `.todo/` que hará este skill. El hook `todo-guard` bloquea cualquier edición de `.todo/` que no venga precedida de esta apertura.
+
 ### 0a. Resolver el proyecto (repo vs registro central)
 
 ```bash
