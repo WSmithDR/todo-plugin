@@ -43,6 +43,12 @@ Para verificar que el update tomó efecto, ejecutar `/todo-health` — la versi�
 
 All task files live under `.todo/` in the project root — never at the root level.
 
+**Proyectos sin repositorio git** (p.ej. un sitio WordPress operado vía MCP) no
+tienen un `.todo/` local. En su lugar, el plugin mantiene un registro central:
+`~/.local/share/todo/` es un único repo git con un subdirectorio `<id>/.todo/` por
+proyecto. Al ejecutar un skill fuera de un repo, se elige el proyecto desde un menú
+(o se crea uno nuevo). Identidad = nombre + id; el cwd no se toca.
+
 | File | Purpose |
 |---|---|
 | `.todo/TODO.md` | Open items, sorted by Eisenhower quadrant |

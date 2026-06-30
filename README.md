@@ -44,6 +44,16 @@ La versión se incrementa en cada cambio publicado, por lo que si `/todo-health`
 /todo-health
 ```
 
+## Estructura de archivos
+
+Los archivos de tareas viven en `.todo/` en la raíz del proyecto: `TODO.md`, `DOING.md`, `DONE.md` y `DISCARDED.md`.
+
+**Proyectos sin repositorio git** (p.ej. un sitio WordPress operado vía MCP) no
+tienen un `.todo/` local. En su lugar, el plugin usa un registro central:
+`~/.local/share/todo/` es un único repo git con un subdirectorio `<id>/.todo/` por
+proyecto. Al ejecutar un skill fuera de un repo, se elige el proyecto desde un menú
+(o se crea uno nuevo). Identidad = nombre + id; el cwd no se toca.
+
 ## Desarrollo del plugin
 
 ### Setup inicial (una vez por clon)
