@@ -19,6 +19,18 @@ Manages per-project plugin settings. Config file: `.todo/config.json`.
 
 ## Process
 
+### 0. Solo aplica en repos
+
+```bash
+MODE=$("${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" mode)
+echo "$MODE"
+```
+
+Si `MODE` es `nonrepo`, esta configuración no aplica: la única opción
+(`gitignore_todo`) es irrelevante para un store privado, y `todo-store.sh create`
+ya siembra un `config.json` válido. Informar al usuario que en proyectos sin repo
+no hay nada que configurar y terminar sin cambios.
+
 ### 1. Read existing config
 
 ```bash
