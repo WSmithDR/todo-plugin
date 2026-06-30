@@ -44,7 +44,9 @@ case "$cmd" in
     printf '%s\n' "$id"
     ;;
   path)
-    dir="$BASE/${1:?id requerido}"; mkdir -p "$dir/.todo"; printf '%s\n' "$dir"
+    id="${1:?id requerido}"
+    case "$id" in *[!a-z0-9-]*|'') echo "id inválido: $id" >&2; exit 1 ;; esac
+    dir="$BASE/$id"; mkdir -p "$dir/.todo"; printf '%s\n' "$dir"
     ;;
   *) echo "uso: todo-store.sh {mode|list|create <name>|path <id>}" >&2; exit 1 ;;
 esac

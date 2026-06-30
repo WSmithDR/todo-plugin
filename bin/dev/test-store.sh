@@ -59,4 +59,8 @@ config3="$BASE/$id3/.todo/config.json"
 python3 -c 'import json,sys; json.load(open(sys.argv[1]))' "$config3" \
   || fail "config.json con nombre especial no es JSON válido"
 
+# path: rechaza id con traversal de directorios
+if (cd "$TMP" && "$STORE" path '../escape') >/dev/null 2>&1; then fail "path aceptó id con traversal"; fi
+[ ! -e "$TMP/share/escape" ] && [ ! -e "$TMP/escape" ] || fail "path creó dir fuera de BASE"
+
 echo "OK: todo-store.sh"
