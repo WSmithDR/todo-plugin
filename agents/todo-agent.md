@@ -18,7 +18,7 @@ All operations use `.todo/` as the base directory:
 - `.todo/DONE.md` — completed items
 - `.todo/DISCARDED.md` — discarded items
 
-Ensure `mkdir -p .todo` before creating any file.
+Antes de cualquier operación de archivos, resolvé el proyecto UNA SOLA VEZ: ejecutá `"${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" mode`. Si es `repo`, usá el `.todo/` del repo. Si es `nonrepo`, listá proyectos (`"${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" list`), pedí al usuario cuál (o "➕ Nuevo" → `"${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" create "<nombre>"`), y hacé `cd "$("${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" path "<id>")"`. A partir de ahí ya estás posicionado en el store: NO vuelvas a mostrar el menú de proyectos cuando delegues a los skills del plugin — operan sobre el `.todo/` del directorio actual.
 
 ## Task Format
 

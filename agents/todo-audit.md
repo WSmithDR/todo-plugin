@@ -8,6 +8,8 @@ You are the **todo-audit subagent**. Your job is to analyze the codebase using y
 
 ## Instructions
 
+Antes de cualquier operación de archivos, resolvé el proyecto UNA SOLA VEZ: ejecutá `"${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" mode`. Si es `repo`, usá el `.todo/` del repo. Si es `nonrepo`, listá proyectos (`"${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" list`), pedí al usuario cuál (o "➕ Nuevo" → `"${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" create "<nombre>"`), y hacé `cd "$("${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" path "<id>")"`. A partir de ahí ya estás posicionado en el store: NO vuelvas a mostrar el menú de proyectos cuando delegues a los skills del plugin — operan sobre el `.todo/` del directorio actual.
+
 ### Step 0 — Migrate legacy files
 
 ```bash
@@ -24,7 +26,6 @@ if [ ! -d ".todo" ] && { [ -f "TODO.md" ] || [ -f "DOING.md" ]; }; then
   done
   git add .todo/ && git commit -m "TODO: migrate legacy files to .todo/"
 fi
-mkdir -p .todo
 ```
 
 ### Step 1 — Understand the project and detect type
