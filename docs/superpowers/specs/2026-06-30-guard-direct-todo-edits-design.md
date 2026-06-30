@@ -43,7 +43,7 @@ Subcomandos:
 set -euo pipefail
 GUARD_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/todo-plugin"
 WINDOW="$GUARD_DIR/window"
-WINDOW_MIN=5   # minutos que la ventana se considera fresca
+WINDOW_MIN=10   # minutos que la ventana se considera fresca
 
 if [ "${1:-check}" = "open" ]; then
     mkdir -p "$GUARD_DIR"; touch "$WINDOW"; exit 0
@@ -99,9 +99,9 @@ Notas:
 ### 2. Apertura de la ventana en cada skill y agente
 
 Agregar como **primerísima acción** del proceso — **antes** de la resolución de
-proyecto (paso 0 del registro sin repo), porque esa resolución puede llamar a
-`todo-store.sh create`, que escribe `…/.todo/config.json` y sería bloqueado si la
-ventana aún no está abierta:
+proyecto (paso 0 del registro sin repo), porque los bloques de migración legacy de
+los skills (`sed -i … .todo/*.md`, `git mv … .todo/`) son visibles para el hook y
+quedarían auto-bloqueados si corrieran antes de que la ventana esté abierta:
 
 ```bash
 "${CLAUDE_PLUGIN_ROOT}/bin/todo-guard.sh" open
@@ -115,7 +115,7 @@ Skills afectados: `todo-add`, `todo-doing`, `todo-done`, `todo-clarify`,
 `todo-config`. Agentes: `todo-agent.md`, `todo-audit.md`.
 (`todo-health` es read-only → no necesita abrir ventana.)
 
-Como la ventana dura 5 min, cubre incluso skills con menú interactivo
+Como la ventana dura 10 min, cubre incluso skills con menú interactivo
 (selección de proyecto en contexto sin repo) sin que expire antes de escribir.
 
 ### 3. Registro en `hooks/hooks.json`
@@ -137,7 +137,7 @@ Agregar entradas **PreToolUse**:
 
 ## Trade-offs aceptados
 
-- **Leak de 5 min:** tras correr un skill, una edición directa a `.todo/` pasaría
+- **Leak de 10 min:** tras correr un skill, una edición directa a `.todo/` pasaría
   durante la ventana. Es el precio de no romper skills con menú interactivo. El
   caso real a bloquear (Edit directo "en frío", sin skill previo) sí queda cubierto.
 - **Bash heurístico:** puede no atrapar toda forma de escritura por bash; el
@@ -163,4 +163,4 @@ alimentando al script JSON de PreToolUse por stdin:
 - Bash `sed -i ... .todo/TODO.md` sin ventana → exit 2; con ventana → exit 0.
 - Bash que solo lee `.todo/` (`cat .todo/TODO.md`) → exit 0.
 - `TODO_GUARD=off` + Edit sobre `.todo/` sin ventana → exit 0 (bypass).
-- Ventana vieja (mtime > 5 min, simulado con `touch -d`) → exit 2.
+- Ventana vieja (mtime > 10 min, simulado con `touch -d`) → exit 2.
