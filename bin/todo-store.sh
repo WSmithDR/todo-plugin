@@ -35,8 +35,10 @@ case "$cmd" in
     while [ -d "$BASE/$id" ]; do id="$slug-$n"; n=$((n+1)); done
     dir="$BASE/$id/.todo"; mkdir -p "$dir"
     today=$(date +%Y-%m-%d); by=$(git config user.name 2>/dev/null || echo "")
+    name_json=$(printf '%s' "$name" | sed 's/\\/\\\\/g; s/"/\\"/g')
+    by_json=$(printf '%s' "$by" | sed 's/\\/\\\\/g; s/"/\\"/g')
     printf '{\n  "name": "%s",\n  "id": "%s",\n  "created_at": "%s",\n  "created_by": "%s",\n  "gitignore_todo": false\n}\n' \
-      "$name" "$id" "$today" "$by" > "$dir/config.json"
+      "$name_json" "$id" "$today" "$by_json" > "$dir/config.json"
     git -C "$BASE" add "$id/.todo/config.json"
     git -C "$BASE" commit -q -m "todo: registrar proyecto $name"
     printf '%s\n' "$id"

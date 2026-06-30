@@ -51,4 +51,12 @@ mkdir -p "$TMP/bare"
 m=$(cd "$TMP/bare" && "$STORE" mode)
 [ "$m" = "nonrepo" ] || fail "mode en dir pelado esperaba 'nonrepo', obtuve '$m'"
 
+# JSON safety: name con doble comilla y backslash → config.json debe ser JSON válido
+# Nota: list usa grep '"name": *"[^"]*"' que no soporta comillas embebidas escapadas;
+# la garantía aquí es solo validez del JSON — round-trip de list queda fuera de scope.
+id3=$(cd "$TMP" && "$STORE" create 'Sitio "X" \ Y')
+config3="$BASE/$id3/.todo/config.json"
+python3 -c 'import json,sys; json.load(open(sys.argv[1]))' "$config3" \
+  || fail "config.json con nombre especial no es JSON válido"
+
 echo "OK: todo-store.sh"
