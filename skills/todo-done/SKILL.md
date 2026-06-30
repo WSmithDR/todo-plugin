@@ -9,6 +9,26 @@ Moves completed items from `.todo/TODO.md` or `.todo/DOING.md` into `.todo/DONE.
 
 ## Process
 
+### 0a. Resolver el proyecto (repo vs registro central)
+
+```bash
+MODE=$("${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" mode)
+echo "$MODE"
+```
+
+- Si `MODE` es `repo`: continuar normalmente.
+- Si `MODE` es `nonrepo`: listar proyectos y elegir cuál operar (solo existentes; este skill no crea proyectos):
+
+```bash
+"${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" list
+```
+
+Mostrar con `AskUserQuestion` un menú con una opción por proyecto (usar el `<name>`). Si la lista está vacía, informar que no hay proyectos registrados y terminar. Luego posicionarse:
+
+```bash
+cd "$("${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" path "<id elegido>")"
+```
+
 ### 0. Detect and migrate legacy files
 
 ```bash
