@@ -13,10 +13,22 @@ TODO_FILE=".todo/TODO.md"
 DOING_COUNT=$(grep -c "^\- \[ \]" "$DOING_FILE" 2>/dev/null || echo "0")
 TODO_COUNT=$(grep -c "^\- \[ \]" "$TODO_FILE" 2>/dev/null || echo "0")
 
-[ "$DOING_COUNT" = "0" ] && [ "$TODO_COUNT" = "0" ] && exit 0
-
 STAGED=$(git diff --cached --name-only 2>/dev/null | head -20 | tr '\n' ' ')
 [ -z "$STAGED" ] && exit 0
+
+# Guard duro: checkboxes '- [x]' agregados a mano en TODO/DOING (staged).
+# Un completado se MUEVE a DONE.md vía la skill todo-done — no se marca.
+MARKED=$(git diff --cached -U0 -- .todo/TODO.md .todo/DOING.md 2>/dev/null \
+    | grep -c '^\+- \[x\]' || true)
+if [ "${MARKED:-0}" != "0" ]; then
+    echo "TODO-PRE-COMMIT: $MARKED checkbox(es) '- [x]' marcados A MANO en TODO.md/DOING.md (staged).
+Un item completado NO se marca: se MUEVE a DONE.md con narrativa y atribución.
+→ Revertí el/los '- [x]' y corré la skill todo-done (todo-plugin); después volvé a commitear.
+  --no-verify NO corresponde acá: el checkbox huérfano rompe DONE.md como fuente de completados." >&2
+    exit 1
+fi
+
+[ "$DOING_COUNT" = "0" ] && [ "$TODO_COUNT" = "0" ] && exit 0
 
 MSG="TODO-PRE-COMMIT: Revisión previa al commit.
 

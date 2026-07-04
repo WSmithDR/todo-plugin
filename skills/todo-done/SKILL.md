@@ -7,6 +7,12 @@ description: "Marks TODO items as completed, moving them to .todo/DONE.md or .to
 
 Moves completed items from `.todo/TODO.md` or `.todo/DOING.md` into `.todo/DONE.md`, and discarded items into `.todo/DISCARDED.md`. Keeps TODO.md and DOING.md clean — only open, active work stays there.
 
+## Regla dura: nunca `- [x]` a mano
+
+Un item completado **NO se marca `- [x]` en TODO.md/DOING.md: se MUEVE** a `DONE.md` (o `DISCARDED.md`) vía esta skill, con narrativa `✓ _resuelto: ..._` y atribución de responsables. Un `[x]` que queda en TODO.md es un bug de proceso: DONE.md es la fuente de verdad de completados (la consumen otras herramientas, p.ej. bitacora para el informe mensual) y un checkbox huérfano lo deja invisible. Enforcement en dos capas: `todo-guard` bloquea el write de `- [x]` a TODO/DOING aun con ventana abierta, y el pre-commit bloquea cualquier `- [x]` staged que se haya colado por otra vía.
+
+Si el hook pre-commit avisa "si alguna tarea fue resuelta → invocar todo-done primero", la respuesta correcta es **correr esta skill** — no `git commit --no-verify`. El `--no-verify` solo corresponde cuando el commit genuinamente no resuelve ninguna tarea abierta.
+
 ## Process
 
 ### 0. Abrir ventana de escritura

@@ -15,6 +15,30 @@ fi
 
 payload="$(cat)"
 
+# Guard duro (ignora la ventana): '- [x]' agregado a TODO/DOING.
+# Un completado se MUEVE a DONE.md vía todo-done; ningún flujo legítimo
+# marca checkboxes en TODO.md/DOING.md.
+if printf '%s' "$payload" | python3 -c '
+import json,sys,re
+try:
+    d=json.load(sys.stdin)
+except Exception:
+    sys.exit(1)
+tool=(d.get("tool_name","") or "").lower()
+ti=d.get("tool_input",{}) or {}
+if tool not in ("edit","write","multiedit"):
+    sys.exit(1)
+p=((ti.get("file_path") or ti.get("filePath") or "")).replace("\\","/")
+if not re.search(r"/\.todo/(TODO|DOING)\.md$", "/"+p):
+    sys.exit(1)
+texts=[ti.get("content","") or "", ti.get("new_string","") or ""]
+texts+=[e.get("new_string","") or "" for e in (ti.get("edits") or [])]
+sys.exit(0 if any(re.search(r"^\s*- \[x\]", t, re.M) for t in texts) else 1)
+'; then
+    echo "TODO-GUARD: intento de marcar '- [x]' en TODO.md/DOING.md bloqueado (la ventana de escritura NO lo autoriza). Un item completado se MUEVE a DONE.md: usá la skill todo-done." >&2
+    exit 2
+fi
+
 # ¿La operación escribe en un .todo/? (exit 0 = sí escribe)
 if printf '%s' "$payload" | python3 -c '
 import json,sys,re
@@ -22,12 +46,12 @@ try:
     d=json.load(sys.stdin)
 except Exception:
     sys.exit(1)
-tool=d.get("tool_name","")
+tool=(d.get("tool_name","") or "").lower()
 ti=d.get("tool_input",{}) or {}
-if tool in ("Edit","Write","MultiEdit"):
-    p=(ti.get("file_path","") or "").replace("\\","/")
+if tool in ("edit","write","multiedit"):
+    p=((ti.get("file_path") or ti.get("filePath") or "")).replace("\\","/")
     sys.exit(0 if "/.todo/" in "/"+p else 1)
-if tool=="Bash":
+if tool=="bash":
     cmd=ti.get("command","") or ""
     touches=".todo/" in cmd
     writes=bool(re.search(r"sed +-i|>>?\s*\S*\.todo/|tee|(^|\s)(cp|mv|rm)\s|open\([^)]*[\x27\x22]w", cmd))
