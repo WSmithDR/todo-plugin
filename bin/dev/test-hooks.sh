@@ -7,6 +7,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HOOKS_DIR="$SCRIPT_DIR/../hooks"
 GIT_HOOKS_DIR="$SCRIPT_DIR/git-hooks"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 PASS=0
 FAIL=0
 
@@ -172,6 +173,16 @@ result=$(run_in_tmpdir '
 echo ""
 echo "=== post-commit (versionado) ==="
 
+# Se copia el cli-config.yaml real en vez de escribir uno de juguete: así el
+# test valida contra el esquema que el generador consume de verdad.
+SCAFFOLD="
+    git init -q && git config user.email 't@t.com' && git config user.name 'T'
+    mkdir -p bin/dev
+    cp '$REPO_ROOT/bin/dev/generate-cli-configs.py' bin/dev/
+    cp '$REPO_ROOT/cli-config.yaml' .
+"
+_set_version() { echo "    sed -i 's|^  version: .*|  version: \"$1\"|' cli-config.yaml"; }
+
 _test_bump() {
     local label="$1"
     local msg="$2"
@@ -179,17 +190,23 @@ _test_bump() {
     local expected="$4"
 
     result=$(run_in_tmpdir "
-        git init -q && git config user.email 't@t.com' && git config user.name 'T'
-        mkdir -p .claude-plugin
-        echo '{\"version\":\"$initial\"}' > .claude-plugin/plugin.json
+        $SCAFFOLD
+        $(_set_version "$initial")
+        python3 bin/dev/generate-cli-configs.py > /dev/null
         echo 'x' > file.txt && git add file.txt
         git commit -q --no-verify -m '$msg'
         bash '$GIT_HOOKS_DIR/post-commit' > /dev/null 2>&1
-        got=\$(python3 -c \"import json; print(json.load(open('.claude-plugin/plugin.json'))['version'])\")
-        in_commit=\$(git show --name-only HEAD | grep -c 'plugin.json' || true)
-        [ \"\$got\" = '$expected' ] && [ \"\$in_commit\" = '1' ] && echo OK || echo \"got=\$got in_commit=\$in_commit\"
+        v() { python3 -c \"import json,sys; print(json.load(open(sys.argv[1]))\$2)\" \"\$1\"; }
+        plug=\$(v .claude-plugin/plugin.json \"['version']\")
+        mkt=\$(v .claude-plugin/marketplace.json \"['plugins'][0]['version']\")
+        meta=\$(v .claude-plugin/marketplace.json \"['metadata']['version']\")
+        in_commit=\$(git show --name-only HEAD | grep -c 'cli-config.yaml' || true)
+        [ \"\$plug\" = '$expected' ] && [ \"\$mkt\" = '$expected' ] && [ \"\$meta\" = '$expected' ] \
+            && [ \"\$in_commit\" = '1' ] && echo OK \
+            || echo \"plugin=\$plug marketplace=\$mkt metadata=\$meta in_commit=\$in_commit\"
     ")
-    [ "$result" = "OK" ] && _pass "$label ($initial → $expected, en commit)" || _fail "$label → $result"
+    [ "$result" = "OK" ] && _pass "$label ($initial → $expected, proyectado a todos los manifiestos)" \
+        || _fail "$label → $result"
 }
 
 _test_bump "fix: → patch"     "fix: corregir algo"        "1.0.3" "1.0.4"
@@ -198,35 +215,61 @@ _test_bump "chore: → patch"   "chore: actualizar deps"    "1.2.5" "1.2.6"
 _test_bump "docs: → patch"    "docs: actualizar README"   "1.0.3" "1.0.4"
 _test_bump "BREAKING → major" "feat!: romper API"         "1.0.3" "2.0.0"
 
-# plugin.json ya en commit (bump manual) → no tocar
+# La LÍNEA de la versión cambió en el commit (bump manual) → no tocar
 result=$(run_in_tmpdir "
-    git init -q && git config user.email 't@t.com' && git config user.name 'T'
-    mkdir -p .claude-plugin
-    echo '{\"version\":\"9.9.9\"}' > .claude-plugin/plugin.json
-    git add .claude-plugin/plugin.json && git commit -q --no-verify -m 'fix: algo'
-    bash '$GIT_HOOKS_DIR/post-commit' 2>&1
-    got=\$(python3 -c \"import json; print(json.load(open('.claude-plugin/plugin.json'))['version'])\")
+    $SCAFFOLD
+    git add cli-config.yaml && git commit -q --no-verify -m 'init'
+    $(_set_version "9.9.9")
+    git add cli-config.yaml && git commit -q --no-verify -m 'fix: algo'
+    bash '$GIT_HOOKS_DIR/post-commit' > /dev/null 2>&1
+    got=\$(grep -oP '^  version: \"\\K[^\"]+' cli-config.yaml)
     [ \"\$got\" = '9.9.9' ] && echo OK || echo \"got=\$got\"
 ")
-[ "$result" = "OK" ] && _pass "plugin.json en commit → sin cambios" || _fail "plugin.json en commit → $result"
+[ "$result" = "OK" ] && _pass "version editada a mano → sin bump" || _fail "bump manual → $result"
+
+# cli-config.yaml en el commit pero SIN tocar la versión → bumpea igual.
+# El guard viejo miraba el archivo entero: cambiar un keyword o una descripción
+# se llevaba puesto el bump y nadie se enteraba.
+result=$(run_in_tmpdir "
+    $SCAFFOLD
+    $(_set_version "1.0.0")
+    git add cli-config.yaml && git commit -q --no-verify -m 'init'
+    sed -i 's|^  license: .*|  license: Apache-2.0|' cli-config.yaml
+    git add cli-config.yaml && git commit -q --no-verify -m 'chore: cambiar licencia'
+    bash '$GIT_HOOKS_DIR/post-commit' > /dev/null 2>&1
+    got=\$(grep -oP '^  version: \"\\K[^\"]+' cli-config.yaml)
+    [ \"\$got\" = '1.0.1' ] && echo OK || echo \"got=\$got (esperado 1.0.1)\"
+")
+[ "$result" = "OK" ] && _pass "cli-config.yaml editado sin tocar la versión → bumpea" || _fail "edición sin version → $result"
+
+# El comentario de arriba de `version:` sobrevive al bump — pyyaml lo borraría.
+result=$(run_in_tmpdir "
+    $SCAFFOLD
+    echo 'x' > file.txt && git add file.txt
+    git commit -q --no-verify -m 'fix: algo'
+    bash '$GIT_HOOKS_DIR/post-commit' > /dev/null 2>&1
+    grep -q '^# cli-config.yaml — fuente única' cli-config.yaml && echo OK || echo 'comentarios borrados'
+")
+[ "$result" = "OK" ] && _pass "el bump preserva los comentarios del YAML" || _fail "comentarios → $result"
 
 # Hook INSTALADO + commit real → bump exactamente UNA vez (no recursión por el amend)
 result=$(run_in_tmpdir "
-    git init -q && git config user.email 't@t.com' && git config user.name 'T'
-    mkdir -p .claude-plugin .git/hooks
-    echo '{\"version\":\"1.0.0\"}' > .claude-plugin/plugin.json
+    $SCAFFOLD
+    $(_set_version "1.0.0")
+    python3 bin/dev/generate-cli-configs.py > /dev/null
+    mkdir -p .git/hooks
     cp '$GIT_HOOKS_DIR/post-commit' .git/hooks/post-commit
     chmod +x .git/hooks/post-commit
     echo 'x' > file.txt && git add file.txt
     git commit -q --no-verify -m 'fix: algo' > /dev/null 2>&1
-    got=\$(python3 -c \"import json; print(json.load(open('.claude-plugin/plugin.json'))['version'])\")
+    got=\$(grep -oP '^  version: \"\\K[^\"]+' cli-config.yaml)
     [ \"\$got\" = '1.0.1' ] && echo OK || echo \"got=\$got (esperado 1.0.1 — un solo bump)\"
 ")
 [ "$result" = "OK" ] && _pass "hook instalado + commit real → bump único (sin recursión)" || _fail "recursión → $result"
 
 # Dos hooks que escriban la versión = dos bumps por commit. Pasó de verdad:
 # prepare-commit-msg quedó instalado junto a post-commit y 1.21.8 saltó a 1.21.10.
-BUMPERS=$(grep -l 'd\["version"\] = new_version' "$GIT_HOOKS_DIR"/* 2>/dev/null | wc -l)
+BUMPERS=$(grep -l 'cli-config.yaml' "$GIT_HOOKS_DIR"/* 2>/dev/null | wc -l)
 [ "$BUMPERS" = "1" ] && _pass "un solo hook bumpea la versión" \
     || _fail "$BUMPERS hooks bumpean la versión (deben ser 1 — instalados juntos duplican el bump)"
 
@@ -236,7 +279,6 @@ echo "=== bridge OpenCode (shell.env) ==="
 # OpenCode no setea CLAUDE_PLUGIN_ROOT; sin el hook, las SKILL.md expanden
 # "${CLAUDE_PLUGIN_ROOT}/bin/todo-guard.sh" a "/bin/todo-guard.sh" y el guard
 # termina bloqueando las skills del propio plugin.
-REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 result=$(node --input-type=module -e "
 import fs from 'fs';
 import { TodoPlugin } from '$REPO_ROOT/.opencode/plugins/todo-plugin.js';

@@ -1,8 +1,14 @@
 #!/bin/bash
-# post-commit: auto-bump version en .claude-plugin/plugin.json y amenda el commit.
+# post-commit: auto-bump de la versión en cli-config.yaml, regeneración de los
+# manifiestos de todos los CLIs, y amend del commit.
 #
-# Corre después del commit → lee el mensaje, calcula el bump, amenda con --no-verify.
-# El --no-verify es seguro porque los tests ya corrieron en pre-commit.
+# Corre después del commit → lee el mensaje, calcula el bump, amenda con
+# --no-verify. El --no-verify es seguro porque los tests ya corrieron en pre-commit.
+#
+# La versión vive en UN solo lugar —cli-config.yaml— y de ahí se proyecta a cada
+# manifiesto. Antes este hook escribía directo .claude-plugin/plugin.json y nadie
+# tocaba marketplace.json: llegó a estar 21 minors atrás (1.0.0 vs 1.21.11).
+# Un solo escritor es lo que hace que ese drift no pueda volver.
 #
 # feat:              → minor
 # fix|chore|docs|... → patch
@@ -11,7 +17,8 @@
 set -euo pipefail
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
-PLUGIN_JSON="$REPO_ROOT/.claude-plugin/plugin.json"
+CLI_CONFIG="$REPO_ROOT/cli-config.yaml"
+GENERATOR="$REPO_ROOT/bin/dev/generate-cli-configs.py"
 SENTINEL="$REPO_ROOT/.git/.version-bump-in-progress"
 
 # Recursion guard: el `git commit --amend` de más abajo re-dispara post-commit
@@ -21,10 +28,15 @@ if [ -f "$SENTINEL" ]; then
     exit 0
 fi
 
-[ ! -f "$PLUGIN_JSON" ] && exit 0
+[ ! -f "$CLI_CONFIG" ] && exit 0
+[ ! -f "$GENERATOR" ] && exit 0
 
-# Bump manual: plugin.json ya está en este commit → no tocar
-if git show --name-only --format="" HEAD | grep -qx "\.claude-plugin/plugin\.json"; then
+# Bump manual: la LÍNEA de la versión cambió en este commit → no tocar.
+#
+# Se mira la línea y no el archivo: cli-config.yaml también se edita para cambiar
+# una descripción, un keyword o una ruta, y esos commits tienen que bumpear igual.
+# Mirando el archivo entero quedaban sin versión nueva y en silencio.
+if git show -U0 --format="" HEAD -- cli-config.yaml | grep -qE '^\+  version:'; then
     exit 0
 fi
 
@@ -39,44 +51,45 @@ else
     BUMP="patch"
 fi
 
-# Leer y validar versión actual
-CURRENT=$(PLUGIN_JSON="$PLUGIN_JSON" python3 -c '
-import json, os, re, sys
-path = os.environ["PLUGIN_JSON"]
-v = json.load(open(path))["version"]
-if not re.fullmatch(r"\d+\.\d+\.\d+", v):
-    sys.exit("version inválida en plugin.json: " + v)
-print(v)
-')
+# Se lee y escribe la versión con un reemplazo de línea — el YAML NO se
+# round-trippea por pyyaml, que borraría todos los comentarios del archivo.
+VERSIONS=$(CLI_CONFIG="$CLI_CONFIG" BUMP="$BUMP" python3 -c '
+import os, re, sys
 
-# Calcular nueva versión
-NEW=$(CURRENT="$CURRENT" BUMP="$BUMP" python3 -c '
-import os
-major, minor, patch = map(int, os.environ["CURRENT"].split("."))
+path = os.environ["CLI_CONFIG"]
+text = open(path, encoding="utf-8").read()
+
+m = re.search(r"^(  version:\s*\")(\d+\.\d+\.\d+)(\")$", text, re.M)
+if not m:
+    sys.exit("no se encontró una version válida en cli-config.yaml")
+
+major, minor, patch = map(int, m.group(2).split("."))
 bump = os.environ["BUMP"]
 if bump == "major":
-    major += 1; minor = 0; patch = 0
+    major, minor, patch = major + 1, 0, 0
 elif bump == "minor":
-    minor += 1; patch = 0
+    minor, patch = minor + 1, 0
 else:
     patch += 1
-print(f"{major}.{minor}.{patch}")
+new = f"{major}.{minor}.{patch}"
+
+open(path, "w", encoding="utf-8").write(
+    text[:m.start()] + m.group(1) + new + m.group(3) + text[m.end():]
+)
+print(m.group(2), new)
 ')
+CURRENT="${VERSIONS%% *}"
+NEW="${VERSIONS##* }"
 
-# Escribir versión actualizada
-PLUGIN_JSON="$PLUGIN_JSON" NEW="$NEW" python3 -c '
-import json, os
-path = os.environ["PLUGIN_JSON"]
-new_version = os.environ["NEW"]
-with open(path) as f:
-    d = json.load(f)
-d["version"] = new_version
-with open(path, "w") as f:
-    json.dump(d, f, indent=2)
-    f.write("\n")
-'
+python3 "$GENERATOR" > /dev/null
 
-git add "$PLUGIN_JSON"
+# Se stagea lo que el generador DECLARA que genera, para no duplicar la lista
+# acá — donde se desincronizaría en cuanto se agregue un CLI.
+git -C "$REPO_ROOT" add "$CLI_CONFIG"
+while read -r rel; do
+    [ -n "$rel" ] && git -C "$REPO_ROOT" add "$REPO_ROOT/$rel"
+done < <(python3 "$GENERATOR" --list)
+
 touch "$SENTINEL"
 git commit --amend --no-edit --no-verify
 rm -f "$SENTINEL"

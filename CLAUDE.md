@@ -39,6 +39,26 @@ Para verificar que el update tomó efecto, ejecutar `/todo-health` — la versi�
 | `fix:`, `chore:`, `docs:`, `refactor:`, `style:`, `test:`, `ci:` | patch |
 | `feat!:` o `BREAKING CHANGE` en el cuerpo | major |
 
+## Manifiestos de los CLIs
+
+`cli-config.yaml` es la fuente única. **No edites los manifiestos a mano** — se
+regeneran desde ahí:
+
+```bash
+python3 bin/dev/generate-cli-configs.py           # regenera
+python3 bin/dev/generate-cli-configs.py --check   # drift; corre en CI
+python3 bin/dev/generate-cli-configs.py --list    # paths que genera
+```
+
+Genera `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json` y
+`opencode.json`. La versión también vive ahí y tiene un solo escritor: el hook
+`post-commit` la bumpea en el YAML y regenera. Antes escribía directo en
+`plugin.json` y `marketplace.json` quedó 21 minors atrás (`1.0.0` vs `1.21.11`).
+
+Para agregar un CLI: escribí una `gen_*()` en el generador y sumala a `TARGETS`.
+Solo si verificaste que el plugin funciona ahí — un manifiesto que declara
+capacidades inexistentes es peor que no tenerlo.
+
 ## File structure
 
 All task files live under `.todo/` in the project root — never at the root level.

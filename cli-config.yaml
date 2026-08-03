@@ -1,0 +1,63 @@
+# cli-config.yaml — fuente única de verdad de los manifiestos de todo-plugin.
+#
+# Editá ESTE archivo y regenerá:
+#   python3 bin/dev/generate-cli-configs.py
+#   python3 bin/dev/generate-cli-configs.py --check   # dry-run, falla si hay drift
+#
+# La versión NO se toca a mano: la bumpea el hook post-commit según el prefijo
+# del mensaje (feat: → minor, fix|chore|docs|… → patch, ! o BREAKING → major) y
+# regenera los manifiestos desde acá. Es el único escritor de la versión.
+#
+# Genera:
+#   .claude-plugin/plugin.json
+#   .claude-plugin/marketplace.json
+#   opencode.json
+#
+# Se generan SOLO los manifiestos que el plugin usa de verdad. Declarar soporte
+# para un CLI que nadie verificó es la falla que el spec de migración documenta
+# en "Se evita": manifiestos que apuntan a rutas y capacidades inexistentes.
+
+plugin:
+  name: todo-plugin
+  version: "1.21.13"
+  description: "Task lifecycle management for Claude Code projects. Maintains .todo/TODO.md, DOING.md, DONE.md using the Eisenhower matrix. Skills for adding, triaging, auditing, and tracking work. Hooks enforce pre-commit task review and error tracking."
+  author:
+    name: WSmithDR
+    url: "https://github.com/WSmithDR"
+  repository: "https://github.com/WSmithDR/todo-plugin"
+  homepage: "https://github.com/WSmithDR/todo-plugin#readme"
+  license: MIT
+  # Usados en plugin.json Y en la entry del marketplace.
+  keywords:
+    - todo
+    - tasks
+    - project-management
+    - eisenhower
+    - developer-tools
+
+# Rutas que declaran los CLIs que no auto-descubren.
+paths:
+  skills: "./skills/"
+
+marketplace:
+  owner:
+    name: WSmithDR
+    url: "https://github.com/WSmithDR"
+  # Descripción del marketplace en sí (metadata.description).
+  metadata_description: "Task lifecycle management for Claude Code projects — add, triage, audit, and track work in .todo/."
+  # Descripción de la entry del plugin (plugins[].description).
+  entry_description: "Manages task lifecycle in .todo/ using the Eisenhower matrix. Skills for adding, triaging, auditing, and tracking work. Hooks enforce pre-commit task review and error tracking."
+  source: "./"
+  category: productivity
+  author:
+    name: WSmithDR
+
+opencode:
+  schema: "https://opencode.ai/config.json"
+  # Las skills se registran acá Y en runtime por el hook `config` del bridge.
+  # Lo de acá cubre el uso dentro de este repo; el hook cubre la instalación
+  # global, donde este opencode.json no se lee.
+  skills_paths:
+    - "./skills/"
+  plugins:
+    - "./.opencode/plugins/todo-plugin.js"
