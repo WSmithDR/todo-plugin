@@ -1,7 +1,7 @@
 # Migración a TypeScript con arquitectura multi-CLI
 
 **Fecha:** 2026-08-03
-**Estado:** Fase 0 implementada (v1.21.9); fases 1–4 pendientes
+**Estado:** Fase 0 implementada (v1.21.9); fases 0.5–4 pendientes
 
 ## Problema
 
@@ -110,7 +110,14 @@ src/
     opencode/{normalize,emit,config,plugin}.ts
 
   cli/{todo-store,todo-guard}.ts   lo que invocan las SKILL.md
+
+cli-config.yaml               fuente única de los manifiestos de todos los CLIs
+bin/dev/generate-cli-configs  regenera los manifiestos; --check detecta drift
 ```
+
+`core/paths.ts` es el **único** dueño de la resolución del root del plugin. No se
+recalcula en ningún otro archivo: es la falla que ya apareció tres veces en este
+ecosistema (ver "Se evita", punto 1).
 
 `mergeDecisions`: el primer `deny` gana; si no hay ninguno, los `advise` se
 concatenan; si no hay ninguno, `allow`.
@@ -194,20 +201,133 @@ reducido a 2 líneas porque git exige un ejecutable; `bin/dev/*.sh` y
 
 `test-guard.sh` y `test-store.sh` prueban scripts que dejan de existir, así que
 migran por obligación. Pasan a `*.test.ts` con `node:test` + `node:assert` —lo
-corren bun y node— colocados junto al módulo. CI cambia
-`bash bin/dev/test-hooks.sh` por `node --test`.
+corren bun y node— colocados junto al módulo.
+
+CI pasa a correr tres cosas, y las tres son obligatorias:
+
+```
+node --test                                  # unitarios + integración
+tsc --noEmit                                 # sin build, es el ÚNICO typecheck
+python3 bin/dev/generate-cli-configs.py --check   # drift de manifiestos
+```
+
+La segunda y la tercera existen porque este diseño no compila nada: sin `tsc` un
+error de tipos llega a producción, y sin `--check` los manifiestos se desincronizan
+en silencio (le pasó a ankify, que tiene el `--check` escrito y ningún CI que lo
+corra).
+
+## Lo que se toma de ankify
+
+`ankify` es el plugin multi-CLI más avanzado del ecosistema y ya resolvió la
+mitad de este problema — la otra mitad la tiene rota, y de forma simétrica:
+
+| | Claude Code | OpenCode |
+|---|---|---|
+| **todo-plugin** | 4 hooks registrados | se auto-bloqueaba (arreglado en fase 0) |
+| **ankify** | `hooks/hooks.json` **vacío** | firewall completo |
+
+Su propio CLAUDE.md lo admite: *"hoy el gate se monta solo desde
+`.opencode/plugins/ankify.ts`. Bajo Claude Code el adaptador `cli.ts --append`
+existe pero no hay hook registrado."* El adaptador está escrito y nunca se cableó.
+
+Esto le da a la capa de adapters **dos consumidores reales hoy**, no uno
+hipotético: todo-plugin necesita el lado OpenCode, ankify necesita el lado Claude
+Code. Sigue fuera de alcance extraerla al catálogo, pero la frontera se valida
+contra un segundo caso concreto en vez de contra una suposición.
+
+### Se adopta
+
+1. **`cli-config.yaml` + `bin/dev/generate-cli-configs.py`** — fuente única que
+   genera 8 manifiestos (`.claude-plugin/plugin.json` y `marketplace.json`,
+   `.codex-plugin/`, `.cursor-plugin/`, `.copilot-plugin/`,
+   `gemini-extension.json`, `opencode.json`, `.mcp.json`), con modo `--check`
+   que detecta drift y sale 1.
+
+   todo-plugin lo necesita **ya**: tiene solo 2 manifiestos y están
+   desincronizados — `plugin.json` en `1.21.11` y `marketplace.json` en `1.0.0`,
+   porque el `post-commit` del autobump solo escribe el primero.
+
+2. **La partición `bin/lib/` (dominio, sin CLI) vs `.opencode/` (cableado)** —
+   es el mismo corte que `core/` vs `adapters/` de este spec, validado en un
+   plugin de ~40 módulos. Confirma que la frontera aguanta a escala.
+
+3. **Entrypoint de adapter con doble payload** — `bin/lib/command-logger/cli.ts`
+   acepta el formato de OpenCode y el de Claude Code en una sola cabecera. Es
+   el precedente del `normalize.ts` de este diseño.
+
+4. **`config-inject`** — registra `skills/` en `config.skills.paths`, genera un
+   `/comando` por skill, y traduce `agents/*.md` al formato de OpenCode (cuerpo →
+   `prompt`, más `mode: "subagent"`), sin copiar archivos.
+
+5. **`tsconfig` con `strict` + `noUnusedLocals` + `noUnusedParameters` +
+   `noEmit`, y `tsc --noEmit` como comando de typecheck.** Sin paso de build, ese
+   comando es la *única* verificación de tipos que existe: va a CI, no es opcional.
+
+6. **Las instrucciones de sesión como archivo aparte** (`session-instructions.md`)
+   inyectado por `system.transform`, en vez de armarse en JS. Separa el contrato
+   con el agente —prosa que se edita seguido— del código que lo entrega.
+
+7. **La convención de comentarios**: en español, explicando el *porqué* y citando
+   el bug o el bypass que los motivó.
+
+### Se evita
+
+Los errores de ankify son todos de la misma familia — **declarado ≠ verificado**:
+
+1. **La resolución del root se hace ad-hoc en varios lugares, y en dos de tres
+   está mal.** `bin/git/plugin-root.sh` caía a `git rev-parse --show-toplevel`
+   (devuelve el repo del usuario; hay un feedback registrado). `bin/dev/bump-version.py`
+   línea 26 hace `Path(__file__).resolve().parent.parent`, que desde `bin/dev/`
+   da `ankify/bin` y no el repo: `--check` y `--sync` fallan al arrancar. El
+   docstring todavía dice *"repo root desde `bin/`"* — el archivo se movió y el
+   cálculo no. **Un solo módulo `core/paths.ts` es dueño de esto.**
+
+2. **Manifiestos que declaran rutas inexistentes.** `.codex-plugin`,
+   `.cursor-plugin` y `.copilot-plugin` declaran `"agents": "./agents/"`, pero
+   `agents/` no existe en ankify. `gemini-extension.json` declara
+   `contextFileName: GEMINI.md`, que tampoco existe. `.mcp.json` figura como
+   target del generador y no está en disco. Generar config no valida nada.
+
+3. **`--check` existe pero no hay CI.** `ankify/.github/workflows/` no existe, así
+   que el detector de drift nunca corrió y el repo acumuló 1/8 manifiestos rotos.
+   Una verificación que nadie ejecuta es documentación.
+
+4. **`discoverAgents()` escanea un directorio que no existe** y devuelve `{}` en
+   silencio. Código que parece vivo.
+
+5. **Un adapter escrito no es un adapter cableado** — `hooks/hooks.json` vacío.
+
+### Consecuencia de diseño: conformance check
+
+De ahí sale un componente que no estaba en la versión anterior de este spec: **no
+alcanza con generar config, hay que verificar que lo declarado exista.**
+`todo-health` se extiende a correr, por cada CLI soportado:
+
+- toda ruta declarada en su manifiesto existe en disco;
+- todo hook declarado apunta a un entrypoint ejecutable;
+- todo entrypoint arranca (`--version` o equivalente, sin efectos);
+- el runtime resuelto por `bin/run.sh` está presente;
+- las versiones coinciden entre todos los manifiestos.
+
+Y corre en CI, no solo a pedido. Es lo único que distingue "soportamos 6 CLIs" de
+"declaramos 6 CLIs".
 
 ## Fases
 
 | Fase | Qué | Estado |
 |---|---|---|
 | **0** | `shell.env` + namespaceo del plugin root | ✅ v1.21.9 |
+| **0.5** | `cli-config.yaml` + generador + `--check` en CI | pendiente |
 | **1** | `core/` + protocol + tests, sin cablear nada | pendiente |
 | **2** | Adapter Claude Code + `hooks.json` + borrar los bash | pendiente |
 | **3** | Adapter OpenCode completo → paridad (B)(C)(D)(E) | pendiente |
-| **4** | Docs, `todo-health`, limpieza | pendiente |
+| **4** | Conformance check en `todo-health` + docs + limpieza | pendiente |
 
 Cada fase se puede shippear sola.
+
+La 0.5 se adelanta al resto porque arregla un bug vivo —`marketplace.json` quedó
+en `1.0.0` mientras `plugin.json` va por `1.21.11`— y porque es independiente de
+todo lo demás: no toca una línea de la lógica del plugin.
 
 ### Fase 0 — implementada
 
@@ -255,6 +375,13 @@ el hook de revisión de tareas; `bin/dev/setup.sh` instala ahí el runner de tes
 de desarrollo. Se pisan mutuamente en cada sesión. La fase 3 rediseña
 `session-setup`, y ahí hay que resolver esto: componer en vez de sobrescribir, o
 detectar que el destino ya está ocupado por otro hook conocido.
+
+**`marketplace.json` está 21 minors atrasado.** `plugin.json` va por `1.21.11` y
+`marketplace.json` declara `1.0.0`, en dos campos (`metadata.version` y
+`plugins[0].version`), porque el `post-commit` del autobump solo escribe el
+primero. El impacto exacto sobre `claude plugin update` no está medido; el drift
+es real igual. Lo arregla la fase 0.5, que pone la versión en `cli-config.yaml` y
+proyecta a los dos manifiestos desde ahí.
 
 **Los 3 items abiertos en TODO.md son todos sobre internals de `todo-store.sh`**
 (directorio huérfano si falla `git commit` en `create`, `$PWD` lógico vs físico
