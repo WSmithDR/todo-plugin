@@ -1,7 +1,7 @@
 # Migración a TypeScript con arquitectura multi-CLI
 
 **Fecha:** 2026-08-03
-**Estado:** completo (v1.23.1). Las cinco fases implementadas.
+**Estado:** completo (v1.24.0). Las cinco fases implementadas.
 
 ## Problema
 
@@ -334,7 +334,7 @@ Y corre en CI, no solo a pedido. Es lo único que distingue "soportamos 6 CLIs" 
 | **1** | `core/` + protocol + tests, sin cablear nada | ✅ v1.21.15 |
 | **2** | Adapter Claude Code + `hooks.json` + borrar los bash | ✅ v1.22.0 |
 | **3** | Adapter OpenCode completo → paridad (B)(C)(D)(E) | ✅ v1.23.0 |
-| **4** | Conformance check en `todo-health` + docs + limpieza | ✅ v1.23.1 |
+| **4** | Conformance check en `todo-health` + docs + limpieza | ✅ v1.24.0 |
 
 Cada fase se puede shippear sola.
 
