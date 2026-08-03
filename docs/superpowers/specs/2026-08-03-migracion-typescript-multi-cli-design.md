@@ -1,7 +1,7 @@
 # Migración a TypeScript con arquitectura multi-CLI
 
 **Fecha:** 2026-08-03
-**Estado:** Fases 0 y 0.5 implementadas (v1.21.13); fases 1–4 pendientes
+**Estado:** Fases 0, 0.5 y 1 implementadas (v1.21.15); fases 2–4 pendientes
 
 ## Problema
 
@@ -318,7 +318,7 @@ Y corre en CI, no solo a pedido. Es lo único que distingue "soportamos 6 CLIs" 
 |---|---|---|
 | **0** | `shell.env` + namespaceo del plugin root | ✅ v1.21.9 |
 | **0.5** | `cli-config.yaml` + generador + `--check` en CI | ✅ v1.21.13 |
-| **1** | `core/` + protocol + tests, sin cablear nada | pendiente |
+| **1** | `core/` + protocol + tests, sin cablear nada | ✅ v1.21.15 |
 | **2** | Adapter Claude Code + `hooks.json` + borrar los bash | pendiente |
 | **3** | Adapter OpenCode completo → paridad (B)(C)(D)(E) | pendiente |
 | **4** | Conformance check en `todo-health` + docs + limpieza | pendiente |
@@ -384,10 +384,11 @@ primero. El impacto exacto sobre `claude plugin update` no está medido; el drif
 es real igual. Lo arregla la fase 0.5, que pone la versión en `cli-config.yaml` y
 proyecta a los dos manifiestos desde ahí.
 
-**Los 3 items abiertos en TODO.md son todos sobre internals de `todo-store.sh`**
+**Los 3 items abiertos en TODO.md ya están arreglados en `src/core/store.ts`**
 (directorio huérfano si falla `git commit` en `create`, `$PWD` lógico vs físico
-en `mode`, y el slug que descarta acentos). La fase 1 los reescribe en TS, así
-que conviene arreglarlos ahí en vez de parchear el bash que va a morir.
+en `mode`, y el slug que descarta acentos), con un test de regresión cada uno.
+Pero siguen abiertos a propósito: lo que corre en producción es el bash, y los
+fixes no llegan al usuario hasta que la fase 2 cablee el adapter. Se cierran ahí.
 
 ## Fuera de alcance
 

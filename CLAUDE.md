@@ -39,6 +39,33 @@ Para verificar que el update tomó efecto, ejecutar `/todo-health` — la versi�
 | `fix:`, `chore:`, `docs:`, `refactor:`, `style:`, `test:`, `ci:` | patch |
 | `feat!:` o `BREAKING CHANGE` en el cuerpo | major |
 
+## Código (`src/`)
+
+En migración a TypeScript. **No hay build**: node (≥22.18) y bun ejecutan los
+`.ts` directo borrando los tipos. Por eso los imports llevan extensión `.ts` y
+está prohibida la sintaxis no borrable (`enum`, `namespace`, decorators) —
+`erasableSyntaxOnly` en el tsconfig lo hace un error de compilación.
+
+```bash
+node --test 'src/**/*.test.ts'   # tests (bun test src/ corre los mismos)
+npx tsc --noEmit                 # único typecheck del proyecto; corre en CI
+```
+
+| Path | Qué |
+|---|---|
+| `src/core/protocol.ts` | `ToolEvent`, `Decision` (`allow`/`deny`/`advise`), `mergeDecisions`. Lo único que importan los adapters |
+| `src/core/rules/` | Las reglas, puras: reciben el estado de I/O como parámetro y devuelven una `Decision` |
+| `src/core/paths.ts` | **Único** dueño de la resolución del root del plugin. No lo recalcules en otro archivo |
+| `src/core/window.ts` | Ventana de escritura del guard |
+| `src/core/store.ts` | Registro central de proyectos sin repo |
+| `src/core/discovery.ts` | Escanea `skills/` y `agents/` leyendo frontmatter |
+
+`core/` no sabe qué CLI está corriendo: esa traducción es de `adapters/` (fase 2).
+Ver `docs/superpowers/specs/2026-08-03-migracion-typescript-multi-cli-design.md`.
+
+Hasta que las fases 2 y 3 cableen los adapters, **lo que corre en producción sigue
+siendo el bash de `bin/`**. Un fix hecho solo en `src/` todavía no llega al usuario.
+
 ## Manifiestos de los CLIs
 
 `cli-config.yaml` es la fuente única. **No edites los manifiestos a mano** — se

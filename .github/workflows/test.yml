@@ -11,6 +11,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # 22.18+ ejecuta .ts borrando los tipos, sin flag y sin build.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+
+      - name: Core tests
+        run: node --test 'src/**/*.test.ts'
+
+      # Sin build, este es el ÚNICO typecheck del proyecto. No es opcional.
+      - name: Typecheck
+        run: npx tsc --noEmit
+
       - name: Run hook tests
         run: bash bin/dev/test-hooks.sh
 

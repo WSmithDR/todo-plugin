@@ -1,0 +1,14 @@
+{
+  "name": "todo-plugin",
+  "private": true,
+  "type": "module",
+  "description": "Dev tooling del plugin. No se publica a npm: el plugin se distribuye por el marketplace y los .ts se ejecutan directo, sin build.",
+  "scripts": {
+    "test": "node --test 'src/**/*.test.ts'",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.7.0"
+  }
+}

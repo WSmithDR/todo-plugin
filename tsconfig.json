@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "skipLibCheck": true,
+    "types": ["node"],
+
+    // No hay build: node y bun ejecutan los .ts directo borrando los tipos. Por
+    // eso los imports llevan extensión .ts explícita (allowImportingTsExtensions)
+    // y tsc solo verifica, nunca emite. `tsc --noEmit` es el ÚNICO typecheck que
+    // existe en el proyecto, así que corre en CI.
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+
+    // El type-stripping solo borra sintaxis borrable: nada de enum, namespace ni
+    // decorators. Esto lo hace un error de compilación en vez de un error en runtime.
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true
+  },
+  "include": ["src/**/*.ts"]
+}
