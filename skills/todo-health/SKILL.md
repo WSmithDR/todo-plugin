@@ -1,84 +1,58 @@
 ---
 name: todo-health
-description: "Verifies that todo-plugin is correctly integrated in the current project. Run this after installing the plugin to confirm skills, hooks, and .todo/ structure are working."
+description: "Verifies that todo-plugin is correctly integrated in the current project. Run this after installing or updating the plugin to confirm skills, hooks, entrypoints and .todo/ structure are working."
 ---
 
 # Todo Plugin — Health Check
 
+Verifica que **todo lo que el plugin declara exista y arranque**, en cada CLI
+soportado. No alcanza con que los manifiestos estén bien escritos: un manifiesto
+puede declarar una ruta que no existe, o un hook que apunta a un archivo borrado,
+y nada se entera hasta que un usuario lo sufre.
+
 ## Process
 
-### 1. Plugin identity
+### 1. Correr el check
 
 ```bash
-cat "${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json" 2>/dev/null \
-  | python3 -c "import json,sys; d=json.load(sys.stdin); print(f\"todo-plugin v{d['version']}\")" \
-  || echo "todo-plugin (version unknown)"
+"${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-health.sh"
 ```
 
-### 2. Skills available
+Un solo comando. Reporta:
 
-List all skills found in the plugin:
+| Verificación | Qué detecta |
+|---|---|
+| `runtime` | Que haya bun o node ≥22.18 — sin eso ningún `.ts` puede ejecutarse |
+| `versiones` | Drift entre `cli-config.yaml` y los campos de versión de cada manifiesto |
+| rutas declaradas | Un `skills:` o un `plugin:` que apunta a algo que no está en disco |
+| hooks | Un hook registrado cuyo comando referencia un archivo inexistente, o un `hooks.json` vacío (adapter escrito y nunca cableado) |
+| skills / agents | Frontmatter incompleto: sin `description` no se descubren; un agente sin cuerpo llega a OpenCode con el prompt vacío |
+| entrypoints | Que cada uno arranque de verdad, ejecutándolo sin efectos |
+| opencode entrypoint | Que resuelva sus imports y exponga los 5 hooks |
 
-```bash
-ls "${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/skills/" 2>/dev/null | sort
-```
+Después imprime el estado del `.todo/` de este proyecto y su `config.json`.
 
-### 3. Hooks registered
+### 2. Interpretar la salida
 
-```bash
-cat "${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/hooks/hooks.json" 2>/dev/null \
-  | python3 -c "
-import json,sys
-d=json.load(sys.stdin)
-hooks=d.get('hooks',d)
-for event, entries in hooks.items():
-    for e in entries:
-        for h in e.get('hooks',[]):
-            matcher = e.get('matcher','*')
-            print(f'  {event}({matcher}): {h[\"command\"][:60]}')
-"
-```
+- `✓` en todo → el plugin está sano; reportalo y terminá.
+- `⚠` → no rompe nada, pero conviene mencionarlo.
+- `✗` → hay algo declarado que no existe o no arranca. El detalle dice qué.
 
-### 4. Project .todo/ status
+Fallas frecuentes y su arreglo:
 
-```bash
-if [ -d ".todo" ]; then
-  todo=$(grep -c "^\- \[ \]" .todo/TODO.md 2>/dev/null || echo 0)
-  doing=$(grep -c "^\- \[ \]" .todo/DOING.md 2>/dev/null || echo 0)
-  done=$(grep -c "^\- \[x\]" .todo/DONE.md 2>/dev/null || echo 0)
-  echo ".todo/ found — TODO:$todo  DOING:$doing  DONE:$done"
-else
-  echo ".todo/ not found — will be created on first todo-add"
-fi
-```
+| Falla | Arreglo |
+|---|---|
+| `versiones: cli-config.yaml dice X, pero …` | `python3 bin/dev/generate-cli-configs.py` |
+| `config: sin configurar` | Invocar la skill `todo-config` |
+| `runtime: no hay bun ni node` | Instalar alguno de los dos |
+| `apunta a …, que no existe` | El archivo se borró o se renombró sin actualizar el manifiesto |
 
-### 5. Plugin config status
+### 3. Reportar
 
-```bash
-cat .todo/config.json 2>/dev/null
-```
+Pasá la salida al usuario tal cual —ya viene formateada— y agregá una línea de
+cierre con el veredicto. Si hubo `✗`, decí explícitamente qué comando lo arregla.
 
-If `.todo/config.json` is missing, note: `⚠ config not set — run todo-config to initialize`.
+## Modo CI
 
-### 6. Output
-
-Print a clean summary:
-
-```
-✓ todo-plugin v1.0.0 — active
-✓ Skills: todo-add, todo-audit, todo-clarify, todo-config, todo-doing, todo-done,
-          todo-health, todo-item, todo-recommend, todo-solutions, todo-triage
-✓ Hooks: PreToolUse(Bash) · PostToolUse(Bash)
-✓ .todo/ — TODO:N  DOING:N  DONE:N
-✓ Config: gitignore_todo=<valor> · configured_by=<nombre> · <fecha>
-  (or) ⚠ Config: not set — run todo-config
-
-Plugin is ready. Run todo-add to create your first task.
-```
-
-If `CLAUDE_PLUGIN_ROOT` is empty or any step fails, report:
-
-```
-✗ CLAUDE_PLUGIN_ROOT not set — plugin may not be installed via claude plugin install.
-  Run: claude plugin install github:WSmithDR/todo-plugin --scope project
-```
+`bin/todo-health.sh --strict` omite el estado del proyecto y sale con 1 si algo
+falla. Es lo que corre en el workflow de tests.

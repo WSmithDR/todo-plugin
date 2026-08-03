@@ -1,7 +1,7 @@
 # Migración a TypeScript con arquitectura multi-CLI
 
 **Fecha:** 2026-08-03
-**Estado:** Fases 0–3 implementadas (v1.23.0); fase 4 pendiente
+**Estado:** completo (v1.23.1). Las cinco fases implementadas.
 
 ## Problema
 
@@ -209,13 +209,20 @@ pre-commit se instala en `.git/hooks/`, y sin eso el root apunta a `.git/`.
 migran por obligación. Pasan a `*.test.ts` con `node:test` + `node:assert` —lo
 corren bun y node— colocados junto al módulo.
 
-CI pasa a correr tres cosas, y las tres son obligatorias:
+CI corre cinco cosas, y las cinco son obligatorias:
 
 ```
-node --test                                  # unitarios + integración
-tsc --noEmit                                 # sin build, es el ÚNICO typecheck
+node --test 'src/**/*.test.ts'                    # unitarios + integración
+bun test src/                                     # los mismos, bajo el otro runtime
+tsc --noEmit                                      # sin build, es el ÚNICO typecheck
 python3 bin/dev/generate-cli-configs.py --check   # drift de manifiestos
+bash bin/todo-health.sh --strict                  # conformance
 ```
+
+La suite corre bajo los dos runtimes porque en producción los ejecutan los dos y
+no siempre parsean igual: un `const declare = …` que node y `tsc` aceptan sin
+chistar rompe el parser de bun, que lo lee como la keyword de declaración
+ambiente. Apareció escribiendo el conformance check.
 
 La segunda y la tercera existen porque este diseño no compila nada: sin `tsc` un
 error de tipos llega a producción, y sin `--check` los manifiestos se desincronizan
@@ -327,7 +334,7 @@ Y corre en CI, no solo a pedido. Es lo único que distingue "soportamos 6 CLIs" 
 | **1** | `core/` + protocol + tests, sin cablear nada | ✅ v1.21.15 |
 | **2** | Adapter Claude Code + `hooks.json` + borrar los bash | ✅ v1.22.0 |
 | **3** | Adapter OpenCode completo → paridad (B)(C)(D)(E) | ✅ v1.23.0 |
-| **4** | Conformance check en `todo-health` + docs + limpieza | pendiente |
+| **4** | Conformance check en `todo-health` + docs + limpieza | ✅ v1.23.1 |
 
 Cada fase se puede shippear sola.
 

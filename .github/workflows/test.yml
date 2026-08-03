@@ -19,8 +19,15 @@ jobs:
           cache: npm
       - run: npm ci
 
-      - name: Core tests
+      # Los .ts corren bajo los DOS runtimes en producción y no siempre los
+      # parsean igual: un `const declare = …` que node y tsc aceptan sin chistar
+      # rompe el parser de bun. La suite corre en ambos por eso.
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Core tests (node)
         run: node --test 'src/**/*.test.ts'
+      - name: Core tests (bun)
+        run: bun test src/
 
       # Sin build, este es el ÚNICO typecheck del proyecto. No es opcional.
       - name: Typecheck
@@ -35,3 +42,8 @@ jobs:
         run: pip install pyyaml
       - name: Check manifest drift
         run: python3 bin/dev/generate-cli-configs.py --check
+
+      # Declarar no es verificar: que todo lo que los manifiestos y hooks
+      # declaran exista en disco y arranque de verdad.
+      - name: Conformance
+        run: bash bin/todo-health.sh --strict

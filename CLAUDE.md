@@ -47,9 +47,16 @@ está prohibida la sintaxis no borrable (`enum`, `namespace`, decorators) —
 `erasableSyntaxOnly` en el tsconfig lo hace un error de compilación.
 
 ```bash
-node --test 'src/**/*.test.ts'   # tests (bun test src/ corre los mismos)
-npx tsc --noEmit                 # único typecheck del proyecto; corre en CI
+node --test 'src/**/*.test.ts'   # tests
+bun test src/                    # los mismos, bajo el otro runtime
+npx tsc --noEmit                 # único typecheck del proyecto
+bash bin/todo-health.sh          # conformance: lo declarado existe y arranca
 ```
+
+**Corré la suite bajo los dos runtimes.** En producción los `.ts` los ejecuta bun
+(OpenCode) o node (Claude Code), y no siempre parsean igual: un
+`const declare = …` que node y `tsc` aceptan sin chistar rompe el parser de bun.
+Los cuatro comandos corren en CI.
 
 | Path | Qué |
 |---|---|
