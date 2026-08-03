@@ -9,7 +9,7 @@ set -euo pipefail
 
 PLUGIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OC_CONFIG="${HOME}/.config/opencode/opencode.json"
-PLUGIN_REL=".opencode/plugins/todo-plugin.js"
+PLUGIN_REL=".opencode/plugins/todo-plugin.ts"
 
 if [ ! -f "$OC_CONFIG" ]; then
   echo "✗ No existe $OC_CONFIG — OpenCode no está configurado"

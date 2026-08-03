@@ -140,17 +140,21 @@ proyecto. Al ejecutar un skill fuera de un repo, se elige el proyecto desde un m
 | `PostToolUse(Bash)` | `git switch` / `git checkout -b` a rama de feature | Recuerda mover la tarea en curso a DOING.md vía `todo-doing` (enforcement suave, `branch-doing.sh`) |
 | `PreToolUse(Edit/Write/MultiEdit/Bash)` | Edición de un `.todo/` | Bloquea la edición directa fuera de un skill; los skills abren una ventana de escritura (`todo-guard.sh`). Bypass: `TODO_GUARD=off` |
 
-### OpenCode bridge (`.opencode/plugins/todo-plugin.js`)
+### OpenCode (`.opencode/plugins/todo-plugin.ts` → `src/adapters/opencode/`)
 
-| Hook | Acción |
-|---|---|
-| `config` | Registra `skills/` en `config.skills.paths` |
-| `shell.env` | Inyecta `TODO_PLUGIN_ROOT` y `CLAUDE_PLUGIN_ROOT` en el entorno de los comandos |
-| `tool.execute.before` | Delega en `bin/todo-guard.sh` (equivalente del `PreToolUse`) |
-| `experimental.chat.messages.transform` | Inyecta el índice de skills en el primer mensaje |
+| Hook | Acción | Equivale a |
+|---|---|---|
+| `shell.env` | Inyecta `TODO_PLUGIN_ROOT` y `CLAUDE_PLUGIN_ROOT` | — (OpenCode no las setea) |
+| `config` | Registra `skills/`, un `/comando` por skill y traduce `agents/*.md` | — |
+| `tool.execute.before` | Guard. `deny` → `throw` (cancela la tool call) | `PreToolUse` |
+| `tool.execute.after` | error-triage + branch-doing. `advise` → anexa a `output.output` | `PostToolUse` |
+| `experimental.chat.system.transform` | Índice de skills + aviso de setup | `SessionStart` |
 
-**Paridad pendiente con Claude Code:** `SessionStart`, los dos `PostToolUse` y los
-agentes de `agents/` todavía no tienen puente. Ver el spec de migración a TypeScript.
+El equivalente de `SessionStart` no es un hook: los efectos corren al construir el
+plugin (el factory recibe `directory`) y el aviso se cuelga del system prompt.
+Usar el hook `event` obligaría a adivinar el nombre del evento de sesión.
+
+**No hay lógica duplicada entre CLIs:** los dos adapters importan el mismo `core/`.
 
 ### Cómo referenciar el root del plugin
 

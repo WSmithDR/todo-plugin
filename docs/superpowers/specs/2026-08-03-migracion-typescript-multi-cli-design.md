@@ -1,7 +1,7 @@
 # Migración a TypeScript con arquitectura multi-CLI
 
 **Fecha:** 2026-08-03
-**Estado:** Fases 0–2 implementadas (v1.22.0); fases 3 y 4 pendientes
+**Estado:** Fases 0–3 implementadas (v1.23.0); fase 4 pendiente
 
 ## Problema
 
@@ -186,9 +186,10 @@ desincronicen.
 
 ### Qué muere y qué sobrevive en bash
 
-**Borrado en la fase 2:** `bin/hooks/session-start.sh`, `error-checker.sh` y
-`branch-doing.sh`. Pendiente para la fase 3: `.opencode/plugins/lib/**`, el bridge
-JS que todavía hace `spawn bash → spawn node` con timeout de 2 s.
+**Borrado:** `bin/hooks/session-start.sh`, `error-checker.sh` y `branch-doing.sh`
+(fase 2); `.opencode/plugins/lib/**` y `todo-plugin.js` (fase 3) — el bridge JS
+que hacía `spawn bash → spawn node` con timeout de 2 s para preguntarle algo a un
+script. Ahora el adapter importa el core directo.
 
 **Queda en bash a propósito:** `bin/run.sh` y los tres shims
 (`todo-guard.sh`, `todo-store.sh`, `hooks/pre-commit.sh`), de 8 líneas y sin
@@ -325,7 +326,7 @@ Y corre en CI, no solo a pedido. Es lo único que distingue "soportamos 6 CLIs" 
 | **0.5** | `cli-config.yaml` + generador + `--check` en CI | ✅ v1.21.13 |
 | **1** | `core/` + protocol + tests, sin cablear nada | ✅ v1.21.15 |
 | **2** | Adapter Claude Code + `hooks.json` + borrar los bash | ✅ v1.22.0 |
-| **3** | Adapter OpenCode completo → paridad (B)(C)(D)(E) | pendiente |
+| **3** | Adapter OpenCode completo → paridad (B)(C)(D)(E) | ✅ v1.23.0 |
 | **4** | Conformance check en `todo-health` + docs + limpieza | pendiente |
 
 Cada fase se puede shippear sola.
@@ -368,7 +369,16 @@ necesita. Si alguna lo llegara a necesitar, el mecanismo en Claude Code es JSON
 por stdout con `permissionDecision: "allow"` más `systemMessage`. Queda marcado
 con un comentario `ponytail:` en el emit, sin código.
 
-**Verificación end-to-end de la fase 0 pendiente.** El hook está cubierto por
+**Cómo reporta OpenCode el fallo de un comando, sin confirmar.** El hook
+`tool.execute.after` recibe `{title, output, metadata}` con `metadata: any`, y su
+tipo no declara dónde viene el exit code. `normalize.ts` prueba las claves
+plausibles (`exit`, `exitCode`, `exit_code`, `code`, `status`) y, si no encuentra
+ninguna, asume éxito. La degradación va en la dirección segura: `error-triage`
+solo aconseja ante un fallo, así que no detectarlo lo hace callar, nunca inventar
+un aviso sobre un comando que anduvo bien. Es el único punto del adapter que no
+se pudo verificar contra OpenCode corriendo, por lo mismo que sigue abajo.
+
+**Verificación end-to-end en OpenCode pendiente.** El hook está cubierto por
 tests unitarios (inyección, no-colisión, y que la expansión real de las SKILL.md
 resuelva en ambos CLIs), y el despacho de `shell.env` está confirmado leyendo el
 binario. Falta correr una skill del plugin dentro de OpenCode: el gate de

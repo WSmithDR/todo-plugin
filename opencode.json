@@ -6,6 +6,6 @@
     ]
   },
   "plugin": [
-    "./.opencode/plugins/todo-plugin.js"
+    "./.opencode/plugins/todo-plugin.ts"
   ]
 }

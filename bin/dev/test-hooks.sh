@@ -250,45 +250,37 @@ BUMPERS=$(grep -l 'cli-config.yaml' "$GIT_HOOKS_DIR"/* 2>/dev/null | wc -l)
     || _fail "$BUMPERS hooks bumpean la versión (deben ser 1 — instalados juntos duplican el bump)"
 
 echo ""
-echo "=== bridge OpenCode (shell.env) ==="
+echo "=== entrypoint de OpenCode ==="
 
-# OpenCode no setea CLAUDE_PLUGIN_ROOT; sin el hook, las SKILL.md expanden
-# "${CLAUDE_PLUGIN_ROOT}/bin/todo-guard.sh" a "/bin/todo-guard.sh" y el guard
-# termina bloqueando las skills del propio plugin.
+# Los hooks se testean en src/adapters/opencode/*.test.ts. Acá solo se verifica
+# que el archivo que OpenCode carga de verdad —.opencode/plugins/todo-plugin.ts—
+# resuelva sus imports y devuelva los hooks. Es lo que TypeScript no cubre: el
+# entrypoint podría estar perfecto y aun así no encontrarse desde donde OpenCode
+# lo busca. ankify tiene el caso opuesto: un adapter escrito y nunca cableado.
 result=$(node --input-type=module -e "
-import fs from 'fs';
-import { TodoPlugin } from '$REPO_ROOT/.opencode/plugins/todo-plugin.js';
-const hooks = await TodoPlugin();
+import TodoPlugin from '$REPO_ROOT/.opencode/plugins/todo-plugin.ts';
+const hooks = await TodoPlugin({ directory: process.cwd() });
+
+const esperados = ['shell.env', 'config', 'tool.execute.before', 'tool.execute.after', 'experimental.chat.system.transform'];
+const faltan = esperados.filter((n) => typeof hooks[n] !== 'function');
+if (faltan.length) { console.log('faltan hooks: ' + faltan.join(', ')); process.exit(0); }
 
 const out = { env: {} };
-await hooks['shell.env']({ cwd: process.cwd() }, out);
-if (out.env.TODO_PLUGIN_ROOT !== '$REPO_ROOT') { console.log('TODO_PLUGIN_ROOT=' + out.env.TODO_PLUGIN_ROOT); process.exit(0); }
-if (out.env.CLAUDE_PLUGIN_ROOT !== '$REPO_ROOT') { console.log('CLAUDE_PLUGIN_ROOT=' + out.env.CLAUDE_PLUGIN_ROOT); process.exit(0); }
-if (!fs.existsSync(out.env.TODO_PLUGIN_ROOT + '/bin/todo-guard.sh')) { console.log('el root no apunta a un plugin real'); process.exit(0); }
+await hooks['shell.env']({}, out);
+if (out.env.TODO_PLUGIN_ROOT !== '$REPO_ROOT') { console.log('root=' + out.env.TODO_PLUGIN_ROOT); process.exit(0); }
 
-// output.env es UN objeto compartido por todos los plugins: el que llegó
-// primero a CLAUDE_PLUGIN_ROOT manda, pero TODO_PLUGIN_ROOT es siempre nuestra.
-const otro = { env: { CLAUDE_PLUGIN_ROOT: '/otro/plugin' } };
-await hooks['shell.env']({}, otro);
-if (otro.env.CLAUDE_PLUGIN_ROOT !== '/otro/plugin') { console.log('pisó a otro plugin'); process.exit(0); }
-console.log(otro.env.TODO_PLUGIN_ROOT === '$REPO_ROOT' ? 'OK' : 'TODO_PLUGIN_ROOT no sobrevive la colisión');
+console.log('OK');
 " 2>&1)
-[ "$result" = "OK" ] && _pass "shell.env inyecta ambas vars y no pisa a otro plugin" || _fail "shell.env → $result"
+[ "$result" = "OK" ] && _pass "el entrypoint carga y expone los 5 hooks" || _fail "entrypoint OpenCode → $result"
 
-# La expansión REAL que usan las SKILL.md tiene que resolver en los dos CLIs.
-_test_expansion() {
-    local label="$1" env_setup="$2"
-    local got
-    got=$(env -u TODO_PLUGIN_ROOT -u CLAUDE_PLUGIN_ROOT bash -c "
-        $env_setup
-        path=\"\${TODO_PLUGIN_ROOT:-\$CLAUDE_PLUGIN_ROOT}/bin/todo-guard.sh\"
-        [ -f \"\$path\" ] && echo OK || echo \"no resuelve: \$path\"
-    ")
-    [ "$got" = "OK" ] && _pass "$label" || _fail "$label → $got"
-}
-
-_test_expansion "OpenCode (solo TODO_PLUGIN_ROOT)"   "export TODO_PLUGIN_ROOT='$REPO_ROOT'"
-_test_expansion "Claude Code (solo CLAUDE_PLUGIN_ROOT)" "export CLAUDE_PLUGIN_ROOT='$REPO_ROOT'"
+# El plugin se registra global por ruta absoluta: los imports tienen que resolver
+# desde cualquier cwd, no solo desde el repo.
+result=$(cd / && node --input-type=module -e "
+import TodoPlugin from '$REPO_ROOT/.opencode/plugins/todo-plugin.ts';
+const hooks = await TodoPlugin({ directory: '/tmp' });
+console.log(typeof hooks['tool.execute.before'] === 'function' ? 'OK' : 'sin hooks');
+" 2>&1)
+[ "$result" = "OK" ] && _pass "carga desde otro cwd (instalación global)" || _fail "cwd ajeno → $result"
 
 echo ""
 echo "Resultado: $PASS passed, $FAIL failed"
