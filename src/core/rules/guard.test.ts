@@ -83,6 +83,54 @@ test("bash que no menciona .todo → allow", () => {
   assert.equal(guard(bashEvent("rm -rf /tmp/basura"), CLOSED).action, "allow")
 })
 
+// Un `<placeholder>` seguido de la ruta contiene la secuencia `>/.todo/`, que la
+// rama del redirect leía como escritura. Bloqueaba comandos cuyo único pecado era
+// NOMBRAR la ruta — pasó de verdad, escribiendo la documentación del guard.
+test("un <placeholder> antes de .todo no es un redirect", () => {
+  const commit = 'git commit -m "create escribe un <id>/.todo/config.json"'
+  assert.equal(guard(bashEvent(commit), CLOSED).action, "allow")
+})
+
+test("un placeholder con espacios tampoco", () => {
+  const cmd = 'echo "el store guarda <nombre del proyecto>/.todo/TODO.md"'
+  assert.equal(guard(bashEvent(cmd), CLOSED).action, "allow")
+})
+
+// Segunda clase de falso positivo, también observada de verdad: un sed sobre un
+// archivo ajeno cuyo SCRIPT menciona la ruta. La escritura tiene que APUNTAR a
+// .todo/, no solo nombrarlo.
+test("sed -i sobre otro archivo, mencionando .todo en el script → allow", () => {
+  const cmd = "sed -i 's|de `.todo/` salvo|de `.todo/` excepto|' CLAUDE.md"
+  assert.equal(guard(bashEvent(cmd), CLOSED).action, "allow")
+})
+
+test("sed -i que SÍ apunta a .todo → deny", () => {
+  assert.equal(guard(bashEvent('sed -i "s/a/b/" .todo/TODO.md'), CLOSED).action, "deny")
+})
+
+test("rm/cp/mv sobre .todo → deny", () => {
+  for (const cmd of ["rm .todo/TODO.md", "cp x .todo/TODO.md", "mv .todo/TODO.md /tmp/"]) {
+    assert.equal(guard(bashEvent(cmd), CLOSED).action, "deny", cmd)
+  }
+})
+
+test("rm sobre otra cosa, aunque el comando nombre .todo → allow", () => {
+  assert.equal(guard(bashEvent('rm /tmp/x  # nada que ver con .todo/'), CLOSED).action, "allow")
+})
+
+// El fix descarta placeholders, no relaja el redirect: las escrituras de verdad
+// se siguen bloqueando, con y sin espacio.
+test("el redirect real sigue bloqueado, con y sin espacio", () => {
+  assert.equal(guard(bashEvent("echo x > .todo/TODO.md"), CLOSED).action, "deny")
+  assert.equal(guard(bashEvent("echo x>.todo/TODO.md"), CLOSED).action, "deny")
+  assert.equal(guard(bashEvent("echo x >> .todo/DOING.md"), CLOSED).action, "deny")
+})
+
+test("el mensaje explica que el prefijo por comando no sirve", () => {
+  const d = guard(bashEvent("sed -i s/a/b/ .todo/TODO.md"), CLOSED)
+  assert.match(d.action === "deny" ? d.message : "", /prefijo por comando/)
+})
+
 // ── Guard duro: '- [x]' a mano ─────────────────────────────────────────────
 // No lo cubría test-guard.sh, y es la regla que la ventana NO puede autorizar.
 

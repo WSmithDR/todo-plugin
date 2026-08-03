@@ -267,6 +267,65 @@ export function checkSkillsAndAgents(root: string): Check[] {
   return checks
 }
 
+// ── el preámbulo de las skills ─────────────────────────────────────────────
+
+const GUARD_OPEN = /todo-guard\.sh"?\s+open/
+const STORE_CALL = /todo-store\.sh"/
+const TODO_WRITE = /\.todo\/(TODO|DOING|DONE|DISCARDED|config)\./
+
+/**
+ * Toda skill que toque `.todo/` tiene que abrir la ventana del guard ANTES de
+ * hacerlo, o el guard la bloquea a ella misma.
+ *
+ * Es la falla más fácil de introducir sin darse cuenta: se escribe una skill
+ * nueva copiando otra, se omiten las primeras líneas, y falla recién cuando un
+ * usuario la invoca. Chequearlo acá lo vuelve imposible de olvidar.
+ *
+ * El orden importa: `todo-store create` escribe un `<id>/.todo/config.json`, así
+ * que también pasa por el guard. Abrir la ventana después de resolver el
+ * proyecto llega tarde.
+ */
+export function checkSkillPreamble(root: string): Check[] {
+  const checks: Check[] = []
+
+  const documentos = [
+    ...discoverSkills(root).map((s) => ({ label: `skills/${s.slug}`, path: join(root, "skills", s.slug, "SKILL.md") })),
+    ...discoverAgents(root).map((a) => ({ label: `agents/${a.slug}`, path: join(root, "agents", `${a.slug}.md`) })),
+  ]
+
+  for (const { label, path } of documentos) {
+    let texto: string
+    try {
+      texto = readFileSync(path, "utf8")
+    } catch {
+      checks.push(fail(label, "no se puede leer"))
+      continue
+    }
+
+    const usaStore = STORE_CALL.test(texto)
+    const escribe = TODO_WRITE.test(texto)
+    if (!usaStore && !escribe) continue // solo lectura (todo-health): nada que abrir
+
+    const lineas = texto.split("\n")
+    const abre = lineas.findIndex((l) => GUARD_OPEN.test(l))
+    if (abre === -1) {
+      checks.push(fail(label, "toca .todo/ y nunca abre la ventana del guard — se bloquea a sí misma"))
+      continue
+    }
+
+    const primerStore = lineas.findIndex((l) => STORE_CALL.test(l))
+    if (primerStore !== -1 && primerStore < abre) {
+      checks.push(
+        fail(label, `usa todo-store en la línea ${primerStore + 1} y abre la ventana recién en la ${abre + 1}`),
+      )
+      continue
+    }
+    checks.push(ok(label, `abre la ventana en la línea ${abre + 1}`))
+  }
+
+  return checks
+}
+
 export async function runConformance(root: string = PLUGIN_ROOT): Promise<Check[]> {
   return [
     checkRuntime(),
@@ -274,6 +333,7 @@ export async function runConformance(root: string = PLUGIN_ROOT): Promise<Check[
     ...checkDeclaredPaths(root),
     ...checkHooks(root),
     ...checkSkillsAndAgents(root),
+    ...checkSkillPreamble(root),
     ...checkEntrypoints(root),
     await checkOpenCodeEntrypoint(root),
   ]

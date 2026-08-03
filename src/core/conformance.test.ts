@@ -9,6 +9,7 @@ import {
   checkHooks,
   checkManifests,
   checkRuntime,
+  checkSkillPreamble,
   checkSkillsAndAgents,
   declaredVersion,
   worstStatus,
@@ -141,6 +142,94 @@ test("un agente sin cuerpo falla: el prompt quedaría vacío en OpenCode", () =>
   withRoot({ "agents/vacio.md": "---\nname: vacio\ndescription: x\n---\n" }, (root) => {
     assert.ok(failures(checkSkillsAndAgents(root)).some((d) => /prompt quedaría vacío/.test(d)))
   })
+})
+
+// ── preámbulo de las skills ────────────────────────────────────────────────
+
+const PREAMBULO_OK = `---
+name: x
+description: y
+---
+\`\`\`bash
+"\${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-guard.sh" open
+MODE=$("\${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" mode)
+\`\`\`
+Escribe en .todo/TODO.md
+`
+
+test("una skill con el preámbulo en orden pasa", () => {
+  withRoot({ "skills/x/SKILL.md": PREAMBULO_OK }, (root) => {
+    assert.deepEqual(failures(checkSkillPreamble(root)), [])
+  })
+})
+
+test("una skill que toca .todo/ sin abrir la ventana falla", () => {
+  withRoot(
+    {
+      "skills/olvidadiza/SKILL.md": `---
+name: olvidadiza
+description: y
+---
+Escribe en .todo/TODO.md sin abrir nada.
+`,
+    },
+    (root) => {
+      assert.ok(failures(checkSkillPreamble(root)).some((d) => /se bloquea a sí misma/.test(d)))
+    },
+  )
+})
+
+test("abrir la ventana DESPUÉS de usar el store falla: create escribe un .todo/", () => {
+  withRoot(
+    {
+      "skills/tarde/SKILL.md": `---
+name: tarde
+description: y
+---
+MODE=$("\${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" mode)
+"\${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-guard.sh" open
+`,
+    },
+    (root) => {
+      assert.ok(failures(checkSkillPreamble(root)).some((d) => /recién en la/.test(d)))
+    },
+  )
+})
+
+test("una skill de solo lectura no necesita abrir nada", () => {
+  withRoot(
+    {
+      "skills/lectora/SKILL.md": `---
+name: lectora
+description: y
+---
+Solo muestra información.
+`,
+    },
+    (root) => {
+      assert.deepEqual(failures(checkSkillPreamble(root)), [])
+    },
+  )
+})
+
+test("un agente que usa el store también tiene que abrir la ventana", () => {
+  withRoot(
+    {
+      "agents/flojo.md": `---
+name: flojo
+description: y
+---
+Corré "\${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" mode
+`,
+    },
+    (root) => {
+      assert.ok(failures(checkSkillPreamble(root)).some((d) => /se bloquea a sí misma/.test(d)))
+    },
+  )
+})
+
+test("las 11 skills y los 2 agentes reales tienen el preámbulo en orden", () => {
+  assert.deepEqual(failures(checkSkillPreamble(PLUGIN_ROOT)), [])
 })
 
 // ── el plugin real ─────────────────────────────────────────────────────────

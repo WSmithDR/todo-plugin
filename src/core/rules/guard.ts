@@ -7,7 +7,9 @@ const MARKED_CHECKBOX =
 const DIRECT_EDIT =
   "TODO-GUARD: edición directa de .todo/ bloqueada. Usá el skill correspondiente " +
   "(todo-add / todo-doing / todo-done / todo-clarify / todo-solutions / todo-recommend / todo-triage / todo-audit), " +
-  "que abren la ventana de escritura automáticamente. Para editar a mano: exportá TODO_GUARD=off."
+  "que abren la ventana de escritura automáticamente.\n" +
+  "Para editar a mano hay que exportar TODO_GUARD=off en el shell que lanza el CLI, ANTES de arrancarlo. " +
+  "Un prefijo por comando (TODO_GUARD=off cmd) no sirve: el hook corre en otro proceso y lee su propio entorno."
 
 export type GuardContext = {
   /** Algún skill abrió la ventana hace menos de WINDOW_MINUTES. */
@@ -27,12 +29,61 @@ const isTodoOrDoing = (path: string): boolean =>
 const touchesTodoDir = (path: string): boolean => normalize(path).includes("/.todo/")
 
 /**
- * Un comando de bash que MENCIONA .todo/ y además escribe. Mencionar no alcanza:
- * `cat .todo/TODO.md` tiene que pasar. La rama del redirect exige que el destino
- * sea un .todo/ — sin eso, cualquier `echo x > /tmp/foo` que nombrara .todo/ en
- * otra parte de la línea quedaba bloqueado.
+ * Detectar una escritura a `.todo/` desde una línea de bash necesita DOS cosas,
+ * y la versión anterior solo pedía una y media:
+ *
+ *   1. que la línea tenga un operador que escriba, y
+ *   2. que haya un TOKEN que sea una ruta bajo `.todo/`.
+ *
+ * Antes alcanzaba con que el string `.todo/` apareciera en cualquier parte del
+ * comando. Eso bloqueaba dos clases de comando legítimo, las dos observadas de
+ * verdad mientras se escribía esta misma documentación:
+ *
+ *   git commit -m "create escribe un <id>/.todo/config.json"
+ *   sed -i 's|.todo/algo|otra cosa|' CLAUDE.md
+ *
+ * El primero contiene la secuencia `>/.todo/` —el `>` es el del placeholder— y
+ * el segundo tiene `sed -i` sobre un archivo que no es del `.todo/`.
  */
-const BASH_WRITES = /sed +-i|>>?\s*\S*\.todo\/|tee|(^|\s)(cp|mv|rm)\s|open\([^)]*['"]w/
+
+/** Los `<placeholder>` no son redirects: se descartan antes de buscar el `>`. */
+const stripPlaceholders = (command: string): string => command.replace(/<[^<>]{1,60}>/g, "")
+
+/**
+ * ¿Algún token del comando ES una ruta a un archivo bajo `.todo/`?
+ *
+ * Dos filtros, cada uno por un falso positivo real:
+ *
+ *   - se descartan los tokens con metacaracteres de shell, que no son rutas sino
+ *     expresiones: así el script `'s|…|…|'` de un `sed` deja de contar como si el
+ *     sed apuntara ahí;
+ *   - se exige que después de `.todo/` venga el principio de un nombre de
+ *     archivo. Un `.todo/` suelto —en un comentario, o entre backticks en un
+ *     texto— nombra el directorio, no escribe en él.
+ */
+const TODO_FILE = /\.todo\/[A-Za-z0-9_.-]/
+
+const hasTodoPathToken = (command: string): boolean =>
+  command.split(/\s+/).some((raw) => {
+    const token = raw.replace(/^['"]+|['"]+$/g, "")
+    return !/[|;&()]/.test(token) && TODO_FILE.test(token)
+  })
+
+/** Operadores que escriben apuntando a un `.todo/`. */
+const WRITE_OPERATORS: RegExp[] = [
+  /(^|\s)sed\s+-i/,
+  // El redirect exige que el destino sea un .todo/: `cat .todo/x > /tmp/y` lee.
+  />{1,2}\s*['"]?\S*\.todo\//,
+  /(^|\s)tee(\s|$)/,
+  /(^|\s)(cp|mv|rm)\s/,
+  /open\([^)]*['"]w/,
+]
+
+export function bashWritesToTodo(command: string): boolean {
+  if (!hasTodoPathToken(command)) return false
+  const limpio = stripPlaceholders(command)
+  return WRITE_OPERATORS.some((operador) => operador.test(limpio))
+}
 
 /**
  * Toda mutación de .todo/ tiene que pasar por un skill, que es lo que mantiene
@@ -53,10 +104,7 @@ export function guard(event: ToolEvent, ctx: GuardContext): Decision {
 
   const writesToTodo =
     (FILE_TOOLS.has(event.kind) && event.paths.some(touchesTodoDir)) ||
-    (event.kind === "bash" &&
-      event.command !== undefined &&
-      event.command.includes(".todo/") &&
-      BASH_WRITES.test(event.command))
+    (event.kind === "bash" && event.command !== undefined && bashWritesToTodo(event.command))
 
   if (!writesToTodo) return ALLOW
   return ctx.windowOpen ? ALLOW : deny(DIRECT_EDIT)

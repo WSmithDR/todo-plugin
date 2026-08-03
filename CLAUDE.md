@@ -140,12 +140,17 @@ proyecto. Al ejecutar un skill fuera de un repo, se elige el proyecto desde un m
 
 ### Claude Code hooks (`hooks/hooks.json`)
 
-| Hook | Trigger | Acción |
-|---|---|---|
-| `SessionStart` | Inicio de sesión | Instala el git pre-commit hook si no existe; detecta `.todo/` sin `config.json` y solicita `todo-config` |
-| `PostToolUse(Bash)` | Comando bash fallido | Evalúa si el error merece abrir una tarea en TODO.md (`error-checker.sh`) |
-| `PostToolUse(Bash)` | `git switch` / `git checkout -b` a rama de feature | Recuerda mover la tarea en curso a DOING.md vía `todo-doing` (enforcement suave, `branch-doing.sh`) |
-| `PreToolUse(Edit/Write/MultiEdit/Bash)` | Edición de un `.todo/` | Bloquea la edición directa fuera de un skill; los skills abren una ventana de escritura (`todo-guard.sh`). Bypass: `TODO_GUARD=off` |
+Los tres eventos entran por el mismo entrypoint: `bin/run.sh
+src/adapters/claude-code/hook.ts <modo>`.
+
+| Hook | Trigger | Regla | Verbo |
+|---|---|---|---|
+| `SessionStart` | Inicio de sesión | `session-setup`: instala el git pre-commit y detecta `.todo/` sin `config.json` | `advise` |
+| `PreToolUse(Edit/Write/MultiEdit/Bash)` | Escritura sobre `.todo/` | `guard`: solo pasa dentro de la ventana que abre un skill. Bypass: `TODO_GUARD=off` | `deny` |
+| `PostToolUse(Bash)` | Comando fallido | `error-triage`: evalúa si merece una tarea | `advise` |
+| `PostToolUse(Bash)` | `git switch` / `checkout -b` a rama de feature | `branch-doing`: recuerda mover la tarea a DOING.md | `advise` |
+
+Los dos `PostToolUse` corren en **un solo proceso** que mergea sus decisiones.
 
 ### OpenCode (`.opencode/plugins/todo-plugin.ts` → `src/adapters/opencode/`)
 
