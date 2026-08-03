@@ -1,7 +1,7 @@
 # Migración a TypeScript con arquitectura multi-CLI
 
 **Fecha:** 2026-08-03
-**Estado:** Fases 0–2 implementadas (v1.21.16); fases 3 y 4 pendientes
+**Estado:** Fases 0–2 implementadas (v1.22.0); fases 3 y 4 pendientes
 
 ## Problema
 
@@ -324,7 +324,7 @@ Y corre en CI, no solo a pedido. Es lo único que distingue "soportamos 6 CLIs" 
 | **0** | `shell.env` + namespaceo del plugin root | ✅ v1.21.9 |
 | **0.5** | `cli-config.yaml` + generador + `--check` en CI | ✅ v1.21.13 |
 | **1** | `core/` + protocol + tests, sin cablear nada | ✅ v1.21.15 |
-| **2** | Adapter Claude Code + `hooks.json` + borrar los bash | ✅ v1.21.16 |
+| **2** | Adapter Claude Code + `hooks.json` + borrar los bash | ✅ v1.22.0 |
 | **3** | Adapter OpenCode completo → paridad (B)(C)(D)(E) | pendiente |
 | **4** | Conformance check en `todo-health` + docs + limpieza | pendiente |
 
