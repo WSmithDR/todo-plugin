@@ -1,5 +1,4 @@
-import { existsSync } from "node:fs"
-import { join } from "node:path"
+import { hasTodoDir as todoDirExists } from "../../core/env.ts"
 import { mergeDecisions } from "../../core/protocol.ts"
 import { PLUGIN_ROOT } from "../../core/paths.ts"
 import { guard } from "../../core/rules/guard.ts"
@@ -7,10 +6,12 @@ import { errorTriage } from "../../core/rules/error-triage.ts"
 import { branchDoing } from "../../core/rules/branch-doing.ts"
 import { sessionSetup } from "../../core/rules/session-setup.ts"
 import { editingItem } from "../../core/rules/editing-item.ts"
+import { sessionClose } from "../../core/rules/session-close.ts"
 import { openItems, openItemTitles, readTodoFile } from "../../core/todo-files.ts"
-import { markAdvisedOnce } from "../../core/session-state.ts"
+import { lastSeenHead, markAdvisedOnce, rememberHead } from "../../core/session-state.ts"
 import { isWindowOpen } from "../../core/window.ts"
-import { currentBranch, guardEnabled } from "../claude-code/context.ts"
+import { currentBranch, currentHead } from "../../core/git.ts"
+import { guardEnabled } from "../../core/env.ts"
 import { injectConfig, type OpenCodeConfig } from "./config.ts"
 import { applyAfter, applyBefore, type AfterOutput } from "./emit.ts"
 import { buildInstructions } from "./instructions.ts"
@@ -28,21 +29,51 @@ import { toToolEvent } from "./normalize.ts"
  *   tool.execute.after    error-triage + branch-doing + editing-item    (PostToolUse)
  *   system.transform      índice de skills + el aviso de setup de sesión
  *
- * SIN equivalente: el `session-end` de Claude Code, que recuerda cerrar lo que
- * quedó en DOING.md si hubo commits. OpenCode expone un hook `event`, pero su
- * tipo no declara qué eventos existen y adivinar un nombre daría un hook que no
- * dispara nunca — declarado y no verificado, justo lo que el conformance check
- * existe para evitar. Se cablea cuando el nombre esté confirmado.
+ * `session-close` también va por `system.transform`, y no por el hook `event`.
+ * OpenCode no tiene un evento de fin de sesión: lo más parecido es
+ * `session.idle`, que es fin de TURNO —el análogo de `Stop` de Claude Code, no de
+ * `SessionEnd`—. Y el hook `event` devuelve void: no tiene canal de salida, así
+ * que un aviso emitido ahí no llegaría al modelo.
+ *
+ * `system.transform` sí corre en cada request y sí tiene canal. La condición de
+ * la regla (HEAD se movió) hace el resto: avisa una vez por commit, no una vez
+ * por request. Cuesta un `git rev-parse` por request, que al lado de una llamada
+ * al modelo no se nota.
  *
  * El equivalente de SessionStart no es un hook: los efectos corren una vez acá,
  * al construir el plugin, y el aviso resultante se cuelga del system prompt. Un
  * `event` hook obligaría a adivinar el nombre del evento de sesión; el factory
  * corre siempre, y el efecto (instalar el git hook) es idempotente.
  */
+
+/**
+ * Devuelve el aviso de cierre si HEAD se movió desde la última vez, o null.
+ *
+ * Re-ancla el HEAD apenas mira: sin eso el mismo commit haría saltar el aviso en
+ * todos los requests siguientes.
+ */
+function checkSessionClose(directory: string, hasTodoDir: boolean): string | null {
+  if (!hasTodoDir) return null
+
+  const head = currentHead(directory)
+  if (!head) return null
+
+  const previo = lastSeenHead(directory)
+  rememberHead(directory, head)
+  if (previo === "") return null // primera vez: se ancla y ya
+
+  const decision = sessionClose({
+    hasTodoDir,
+    doing: openItemTitles(readTodoFile(directory, "DOING.md")),
+    headMoved: previo !== head,
+  })
+  return decision.action === "allow" ? null : decision.message
+}
+
 export function createHooks(directory: string, root: string = PLUGIN_ROOT) {
   const setup = sessionSetup({ cwd: directory, pluginRoot: root })
   const setupNotice = setup.action === "allow" ? null : setup.message
-  const hasTodoDir = existsSync(join(directory, ".todo"))
+  const hasTodoDir = todoDirExists(directory)
 
   return {
     "shell.env": async (_input: unknown, output: { env: Record<string, string> }): Promise<void> => {
@@ -93,6 +124,9 @@ export function createHooks(directory: string, root: string = PLUGIN_ROOT) {
       const instructions = buildInstructions(root)
       if (instructions) output.system.push(instructions)
       if (setupNotice) output.system.push(setupNotice)
+
+      const cierre = checkSessionClose(directory, hasTodoDir)
+      if (cierre) output.system.push(cierre)
     },
   }
 }

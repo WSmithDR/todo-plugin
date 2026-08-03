@@ -174,10 +174,15 @@ nada más. Un aviso que se repite es ruido que el modelo aprende a saltear.
 | `tool.execute.after` | error-triage + branch-doing + editing-item. `advise` → anexa a `output.output` | `PostToolUse` |
 | `experimental.chat.system.transform` | Índice de skills + aviso de setup | `SessionStart` |
 
-**Sin equivalente:** el `SessionEnd` de Claude Code. OpenCode expone un hook
-`event`, pero su tipo no declara qué eventos existen, y adivinar un nombre daría
-un hook que no dispara nunca — declarado y no verificado, justo lo que el
-conformance check existe para evitar. Se cablea cuando el nombre esté confirmado.
+**`session-close` va por `system.transform`, no por un hook de fin de sesión.**
+OpenCode no tiene uno: de los ~31 eventos que declara su SDK, el más cercano es
+`session.idle`, que es fin de **turno** — el análogo de `Stop` de Claude Code, no
+de `SessionEnd`. Y el hook `event` devuelve `void`: no tiene canal de salida, así
+que un aviso emitido ahí no llegaría al modelo.
+
+`system.transform` corre por request y sí tiene canal. La condición de la regla
+—que HEAD se haya movido— hace que el aviso salga **una vez por commit**, no una
+por request. Cuesta un `git rev-parse` por request.
 
 El equivalente de `SessionStart` no es un hook: los efectos corren al construir el
 plugin (el factory recibe `directory`) y el aviso se cuelga del system prompt.

@@ -1,6 +1,7 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { mkdirSync, mkdtempSync, rmSync } from "node:fs"
+import { execFileSync } from "node:child_process"
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { PLUGIN_ROOT } from "../../core/paths.ts"
@@ -13,11 +14,14 @@ const CACHE = mkdtempSync(join(tmpdir(), "todo-oc-cache-"))
 process.env.XDG_CACHE_HOME = CACHE
 process.on("exit", () => rmSync(CACHE, { recursive: true, force: true }))
 
-function withProject<T>(fn: (dir: string) => T): T {
+// El finally tiene que esperar a que la promesa RESUELVA. Con `return fn(dir)` el
+// directorio se borraba apenas fn devolvía la promesa, y cualquier test que
+// hiciera trabajo real después de un await se quedaba sin archivos.
+async function withProject<T>(fn: (dir: string) => Promise<T>): Promise<T> {
   const dir = mkdtempSync(join(tmpdir(), "todo-oc-"))
   try {
     mkdirSync(join(dir, ".todo"), { recursive: true })
-    return fn(dir)
+    return await fn(dir)
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
@@ -118,6 +122,44 @@ test("system.transform inyecta el índice de skills y las reglas duras", async (
     const all = output.system.join("\n")
     assert.match(all, /todo-add/)
     assert.match(all, /NUNCA marques `- \[x\]`/)
+  })
+})
+
+// OpenCode no tiene evento de fin de sesión: el aviso de cierre viaja por
+// system.transform, que corre por request. La condición del HEAD lo vuelve un
+// aviso por commit y no por request.
+test("el aviso de cierre sale cuando HEAD se movió, y una sola vez", async () => {
+  await withProject(async (dir) => {
+    execFileSync("git", ["-C", dir, "init", "-q"])
+    execFileSync("git", ["-C", dir, "config", "user.email", "t@t.com"])
+    execFileSync("git", ["-C", dir, "config", "user.name", "T"])
+    writeFileSync(join(dir, ".todo", "DOING.md"), "- [ ] **Una tarea** — en curso\n")
+    writeFileSync(join(dir, "f.txt"), "x")
+    execFileSync("git", ["-C", dir, "add", "-A"])
+    execFileSync("git", ["-C", dir, "commit", "-q", "-m", "uno"])
+
+    const hooks = createHooks(dir, PLUGIN_ROOT)
+
+    // Primer request: solo ancla el HEAD, no avisa.
+    const primero = { system: [] as string[] }
+    await hooks["experimental.chat.system.transform"](null, primero)
+    assert.doesNotMatch(primero.system.join("\n"), /TODO-SESSION-END/)
+
+    writeFileSync(join(dir, "f.txt"), "y")
+    execFileSync("git", ["-C", dir, "add", "-A"])
+    // --no-verify: createHooks instaló el pre-commit del plugin en este repo, y
+    // ese hook bloquea justamente porque DOING.md tiene un item. Es el plugin
+    // funcionando; acá estorba.
+    execFileSync("git", ["-C", dir, "commit", "-q", "--no-verify", "-m", "dos"])
+
+    const segundo = { system: [] as string[] }
+    await hooks["experimental.chat.system.transform"](null, segundo)
+    assert.match(segundo.system.join("\n"), /TODO-SESSION-END/)
+
+    // Sin commits nuevos no se repite.
+    const tercero = { system: [] as string[] }
+    await hooks["experimental.chat.system.transform"](null, tercero)
+    assert.doesNotMatch(tercero.system.join("\n"), /TODO-SESSION-END/)
   })
 })
 

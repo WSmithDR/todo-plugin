@@ -8,7 +8,8 @@ import { editingItem } from "../../core/rules/editing-item.ts"
 import { isWindowOpen } from "../../core/window.ts"
 import { openItems, openItemTitles, readTodoFile } from "../../core/todo-files.ts"
 import { lastSeenHead, markAdvisedOnce, rememberHead } from "../../core/session-state.ts"
-import { currentBranch, currentHead, guardEnabled, hasTodoDir } from "./context.ts"
+import { currentBranch, currentHead } from "../../core/git.ts"
+import { guardEnabled, hasTodoDir } from "../../core/env.ts"
 import { parsePayload, toToolEvent, type ClaudePayload } from "./normalize.ts"
 
 /**

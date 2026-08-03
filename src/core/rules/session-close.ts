@@ -29,7 +29,7 @@ export function sessionClose(ctx: SessionCloseContext): Decision {
   const resto = ctx.doing.length > MAX_SHOWN ? `\n  … y ${ctx.doing.length - MAX_SHOWN} más` : ""
 
   return advise(
-    `TODO-SESSION-END: hubo commits en esta sesión y quedan ${ctx.doing.length} tarea(s) en DOING.md:
+    `TODO-SESSION-END: hubo commits nuevos y quedan ${ctx.doing.length} tarea(s) en DOING.md:
 ${items.join("\n")}${resto}
 
 Si alguna quedó resuelta, cerrala con la skill todo-done — DONE.md es la fuente

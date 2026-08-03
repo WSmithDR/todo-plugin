@@ -1,37 +1,4 @@
-import { execFileSync } from "node:child_process"
-import { existsSync } from "node:fs"
-import { join } from "node:path"
-
-/**
- * El estado de I/O que las reglas necesitan pero no leen ellas mismas. Vive en el
- * adapter porque es lo único que sabe dónde está parado el CLI.
- */
-
-export const hasTodoDir = (cwd: string): boolean => existsSync(join(cwd, ".todo"))
-
-/** Bypass explícito del guard para editar `.todo/` a mano. */
-export const guardEnabled = (env = process.env): boolean => env.TODO_GUARD !== "off"
-
-/**
- * La rama DESPUÉS de que el comando corrió. Se pregunta a git en vez de parsear
- * el string del comando: `git switch -` o un alias no se pueden leer del texto.
- */
-export function currentBranch(cwd: string): string {
-  return git(cwd, "rev-parse", "--abbrev-ref", "HEAD")
-}
-
-/** El SHA de HEAD. Comparado entre inicio y fin de sesión, dice si hubo commits. */
-export function currentHead(cwd: string): string {
-  return git(cwd, "rev-parse", "HEAD")
-}
-
-function git(cwd: string, ...args: string[]): string {
-  try {
-    return execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim()
-  } catch {
-    return ""
-  }
-}
+/** Lo único específico de Claude Code: cómo llega el payload. */
 
 /** Claude Code siempre pipea stdin; el timeout es para no colgarse si no lo hace. */
 export function readStdin(timeoutMs = 2000): Promise<string> {
