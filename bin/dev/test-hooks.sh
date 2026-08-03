@@ -225,5 +225,47 @@ result=$(run_in_tmpdir "
 [ "$result" = "OK" ] && _pass "hook instalado + commit real → bump único (sin recursión)" || _fail "recursión → $result"
 
 echo ""
+echo "=== bridge OpenCode (shell.env) ==="
+
+# OpenCode no setea CLAUDE_PLUGIN_ROOT; sin el hook, las SKILL.md expanden
+# "${CLAUDE_PLUGIN_ROOT}/bin/todo-guard.sh" a "/bin/todo-guard.sh" y el guard
+# termina bloqueando las skills del propio plugin.
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+result=$(node --input-type=module -e "
+import fs from 'fs';
+import { TodoPlugin } from '$REPO_ROOT/.opencode/plugins/todo-plugin.js';
+const hooks = await TodoPlugin();
+
+const out = { env: {} };
+await hooks['shell.env']({ cwd: process.cwd() }, out);
+if (out.env.TODO_PLUGIN_ROOT !== '$REPO_ROOT') { console.log('TODO_PLUGIN_ROOT=' + out.env.TODO_PLUGIN_ROOT); process.exit(0); }
+if (out.env.CLAUDE_PLUGIN_ROOT !== '$REPO_ROOT') { console.log('CLAUDE_PLUGIN_ROOT=' + out.env.CLAUDE_PLUGIN_ROOT); process.exit(0); }
+if (!fs.existsSync(out.env.TODO_PLUGIN_ROOT + '/bin/todo-guard.sh')) { console.log('el root no apunta a un plugin real'); process.exit(0); }
+
+// output.env es UN objeto compartido por todos los plugins: el que llegó
+// primero a CLAUDE_PLUGIN_ROOT manda, pero TODO_PLUGIN_ROOT es siempre nuestra.
+const otro = { env: { CLAUDE_PLUGIN_ROOT: '/otro/plugin' } };
+await hooks['shell.env']({}, otro);
+if (otro.env.CLAUDE_PLUGIN_ROOT !== '/otro/plugin') { console.log('pisó a otro plugin'); process.exit(0); }
+console.log(otro.env.TODO_PLUGIN_ROOT === '$REPO_ROOT' ? 'OK' : 'TODO_PLUGIN_ROOT no sobrevive la colisión');
+" 2>&1)
+[ "$result" = "OK" ] && _pass "shell.env inyecta ambas vars y no pisa a otro plugin" || _fail "shell.env → $result"
+
+# La expansión REAL que usan las SKILL.md tiene que resolver en los dos CLIs.
+_test_expansion() {
+    local label="$1" env_setup="$2"
+    local got
+    got=$(env -u TODO_PLUGIN_ROOT -u CLAUDE_PLUGIN_ROOT bash -c "
+        $env_setup
+        path=\"\${TODO_PLUGIN_ROOT:-\$CLAUDE_PLUGIN_ROOT}/bin/todo-guard.sh\"
+        [ -f \"\$path\" ] && echo OK || echo \"no resuelve: \$path\"
+    ")
+    [ "$got" = "OK" ] && _pass "$label" || _fail "$label → $got"
+}
+
+_test_expansion "OpenCode (solo TODO_PLUGIN_ROOT)"   "export TODO_PLUGIN_ROOT='$REPO_ROOT'"
+_test_expansion "Claude Code (solo CLAUDE_PLUGIN_ROOT)" "export CLAUDE_PLUGIN_ROOT='$REPO_ROOT'"
+
+echo ""
 echo "Resultado: $PASS passed, $FAIL failed"
 [ $FAIL -eq 0 ] && exit 0 || exit 1

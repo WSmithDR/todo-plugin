@@ -14,7 +14,7 @@ Orchestrates four skills in sequence for a single new item. Run them in order �
 Antes de cualquier otra cosa (incluida la resolución de proyecto, que puede crear archivos):
 
 ```bash
-"${CLAUDE_PLUGIN_ROOT}/bin/todo-guard.sh" open
+"${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-guard.sh" open
 ```
 
 Esto autoriza las escrituras a `.todo/` que hará este skill. El hook `todo-guard` bloquea cualquier edición de `.todo/` que no venga precedida de esta apertura.
@@ -24,7 +24,7 @@ Esto autoriza las escrituras a `.todo/` que hará este skill. El hook `todo-guar
 Determinar el modo:
 
 ```bash
-MODE=$("${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" mode)
+MODE=$("${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" mode)
 echo "$MODE"
 ```
 
@@ -32,7 +32,7 @@ echo "$MODE"
 - Si `MODE` es `nonrepo`: no hay repositorio, las tareas van al registro central. Listar proyectos:
 
 ```bash
-"${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" list
+"${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" list
 ```
 
 Mostrar con `AskUserQuestion` un menú: una opción por cada proyecto listado (usar el `<name>`), más una opción **"➕ Nuevo proyecto"**.
@@ -40,7 +40,7 @@ Mostrar con `AskUserQuestion` un menú: una opción por cada proyecto listado (u
 - Si el usuario elige **"➕ Nuevo proyecto"**: pedirle el nombre y crearlo:
 
 ```bash
-NEW_ID=$("${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" create "<nombre dado>")
+NEW_ID=$("${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" create "<nombre dado>")
 ```
 
 - Si elige un proyecto existente: tomar su `<id>` de la lista.
@@ -48,7 +48,7 @@ NEW_ID=$("${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" create "<nombre dado>")
 Posicionarse en el store del proyecto:
 
 ```bash
-cd "$("${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" path "<id elegido o NEW_ID>")"
+cd "$("${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" path "<id elegido o NEW_ID>")"
 ```
 
 > Resolvé el proyecto UNA SOLA VEZ acá. Al delegar a todo-add / todo-solutions / todo-recommend / todo-clarify NO vuelvas a mostrar el menú de proyectos: ya estás posicionado en el store del proyecto y esos skills operan sobre el `.todo/` del directorio actual.

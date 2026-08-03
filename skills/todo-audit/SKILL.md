@@ -14,7 +14,7 @@ Analyzes the project and produces a complete `.todo/TODO.md` organized with the 
 Antes de cualquier otra cosa (incluida la resolución de proyecto, que puede crear archivos):
 
 ```bash
-"${CLAUDE_PLUGIN_ROOT}/bin/todo-guard.sh" open
+"${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-guard.sh" open
 ```
 
 Esto autoriza las escrituras a `.todo/` que hará este skill. El hook `todo-guard` bloquea cualquier edición de `.todo/` que no venga precedida de esta apertura.
@@ -24,7 +24,7 @@ Esto autoriza las escrituras a `.todo/` que hará este skill. El hook `todo-guar
 Determinar el modo:
 
 ```bash
-MODE=$("${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" mode)
+MODE=$("${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" mode)
 echo "$MODE"
 ```
 
@@ -32,7 +32,7 @@ echo "$MODE"
 - Si `MODE` es `nonrepo`: no hay repositorio, las tareas van al registro central. Listar proyectos:
 
 ```bash
-"${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" list
+"${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" list
 ```
 
 Mostrar con `AskUserQuestion` un menú: una opción por cada proyecto listado (usar el `<name>`), más una opción **"➕ Nuevo proyecto"**.
@@ -40,7 +40,7 @@ Mostrar con `AskUserQuestion` un menú: una opción por cada proyecto listado (u
 - Si el usuario elige **"➕ Nuevo proyecto"**: pedirle el nombre y crearlo:
 
 ```bash
-NEW_ID=$("${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" create "<nombre dado>")
+NEW_ID=$("${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" create "<nombre dado>")
 ```
 
 - Si elige un proyecto existente: tomar su `<id>` de la lista.
@@ -48,7 +48,7 @@ NEW_ID=$("${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" create "<nombre dado>")
 Posicionarse en el store del proyecto (a partir de acá el resto del skill corre tal cual, con `.todo/` relativo y `git commit` sobre el repo central):
 
 ```bash
-cd "$("${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" path "<id elegido o NEW_ID>")"
+cd "$("${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" path "<id elegido o NEW_ID>")"
 ```
 
 ### 0. Detect and migrate legacy files
@@ -127,7 +127,7 @@ Within each quadrant, order by impact descending.
 Re-abrir la ventana antes de escribir — el análisis puede tardar más que la ventana:
 
 ```bash
-"${CLAUDE_PLUGIN_ROOT}/bin/todo-guard.sh" open
+"${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-guard.sh" open
 ```
 
 Ensure the `.todo/` directory exists:

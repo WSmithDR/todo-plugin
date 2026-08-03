@@ -86,6 +86,35 @@ proyecto. Al ejecutar un skill fuera de un repo, se elige el proyecto desde un m
 | `PostToolUse(Bash)` | `git switch` / `git checkout -b` a rama de feature | Recuerda mover la tarea en curso a DOING.md vía `todo-doing` (enforcement suave, `branch-doing.sh`) |
 | `PreToolUse(Edit/Write/MultiEdit/Bash)` | Edición de un `.todo/` | Bloquea la edición directa fuera de un skill; los skills abren una ventana de escritura (`todo-guard.sh`). Bypass: `TODO_GUARD=off` |
 
+### OpenCode bridge (`.opencode/plugins/todo-plugin.js`)
+
+| Hook | Acción |
+|---|---|
+| `config` | Registra `skills/` en `config.skills.paths` |
+| `shell.env` | Inyecta `TODO_PLUGIN_ROOT` y `CLAUDE_PLUGIN_ROOT` en el entorno de los comandos |
+| `tool.execute.before` | Delega en `bin/todo-guard.sh` (equivalente del `PreToolUse`) |
+| `experimental.chat.messages.transform` | Inyecta el índice de skills en el primer mensaje |
+
+**Paridad pendiente con Claude Code:** `SessionStart`, los dos `PostToolUse` y los
+agentes de `agents/` todavía no tienen puente. Ver el spec de migración a TypeScript.
+
+### Cómo referenciar el root del plugin
+
+Los scripts que invocan las skills se resuelven así, y en ese orden:
+
+```bash
+"${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" mode
+```
+
+`CLAUDE_PLUGIN_ROOT` la setea Claude Code; OpenCode no la conoce (su binario no la
+menciona), así que la provee el hook `shell.env`. `TODO_PLUGIN_ROOT` va primero
+porque OpenCode le pasa **el mismo objeto `env` a todos los plugins**: un nombre
+global para un valor por-plugin se pisa entre plugins y rompe las skills del
+perdedor sin ningún error visible.
+
+Nunca resuelvas el root con `git rev-parse --show-toplevel` — devuelve el repo del
+usuario, no el del plugin.
+
 ### Git hook (`bin/hooks/pre-commit.sh`)
 
 Editor-agnóstico — corre en cualquier CLI o editor. Se instala automáticamente via `SessionStart` en la primera sesión del proyecto. Bloquea `git commit` si hay tareas en DOING.md que podrían estar resueltas por los cambios en staging.

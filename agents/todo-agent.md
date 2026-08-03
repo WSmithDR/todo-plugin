@@ -18,9 +18,9 @@ All operations use `.todo/` as the base directory:
 - `.todo/DONE.md` — completed items
 - `.todo/DISCARDED.md` — discarded items
 
-Antes de cualquier operación sobre archivos `.todo/`, ejecutá una sola vez `"${CLAUDE_PLUGIN_ROOT}/bin/todo-guard.sh" open` para abrir la ventana de escritura; el hook todo-guard bloquea ediciones directas de `.todo/` sin esa apertura.
+Antes de cualquier operación sobre archivos `.todo/`, ejecutá una sola vez `"${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-guard.sh" open` para abrir la ventana de escritura; el hook todo-guard bloquea ediciones directas de `.todo/` sin esa apertura.
 
-Antes de cualquier operación de archivos, resolvé el proyecto UNA SOLA VEZ: ejecutá `"${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" mode`. Si es `repo`, usá el `.todo/` del repo. Si es `nonrepo`, listá proyectos (`"${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" list`), pedí al usuario cuál (o "➕ Nuevo" → `"${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" create "<nombre>"`), y hacé `cd "$("${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" path "<id>")"`. A partir de ahí ya estás posicionado en el store: NO vuelvas a mostrar el menú de proyectos cuando delegues a los skills del plugin — operan sobre el `.todo/` del directorio actual.
+Antes de cualquier operación de archivos, resolvé el proyecto UNA SOLA VEZ: ejecutá `"${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" mode`. Si es `repo`, usá el `.todo/` del repo. Si es `nonrepo`, listá proyectos (`"${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" list`), pedí al usuario cuál (o "➕ Nuevo" → `"${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" create "<nombre>"`), y hacé `cd "$("${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" path "<id>")"`. A partir de ahí ya estás posicionado en el store: NO vuelvas a mostrar el menú de proyectos cuando delegues a los skills del plugin — operan sobre el `.todo/` del directorio actual.
 
 ## Task Format
 

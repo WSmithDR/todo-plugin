@@ -10,7 +10,7 @@ description: "Verifies that todo-plugin is correctly integrated in the current p
 ### 1. Plugin identity
 
 ```bash
-cat "${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json" 2>/dev/null \
+cat "${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json" 2>/dev/null \
   | python3 -c "import json,sys; d=json.load(sys.stdin); print(f\"todo-plugin v{d['version']}\")" \
   || echo "todo-plugin (version unknown)"
 ```
@@ -20,13 +20,13 @@ cat "${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json" 2>/dev/null \
 List all skills found in the plugin:
 
 ```bash
-ls "${CLAUDE_PLUGIN_ROOT}/skills/" 2>/dev/null | sort
+ls "${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/skills/" 2>/dev/null | sort
 ```
 
 ### 3. Hooks registered
 
 ```bash
-cat "${CLAUDE_PLUGIN_ROOT}/hooks/hooks.json" 2>/dev/null \
+cat "${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/hooks/hooks.json" 2>/dev/null \
   | python3 -c "
 import json,sys
 d=json.load(sys.stdin)

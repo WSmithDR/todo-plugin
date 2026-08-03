@@ -24,7 +24,7 @@ Manages per-project plugin settings. Config file: `.todo/config.json`.
 Antes de cualquier otra cosa (incluida la resolución de proyecto, que puede crear archivos):
 
 ```bash
-"${CLAUDE_PLUGIN_ROOT}/bin/todo-guard.sh" open
+"${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-guard.sh" open
 ```
 
 Esto autoriza las escrituras a `.todo/` que hará este skill. El hook `todo-guard` bloquea cualquier edición de `.todo/` que no venga precedida de esta apertura.
@@ -32,7 +32,7 @@ Esto autoriza las escrituras a `.todo/` que hará este skill. El hook `todo-guar
 ### 0b. Solo aplica en repos
 
 ```bash
-MODE=$("${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" mode)
+MODE=$("${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" mode)
 echo "$MODE"
 ```
 

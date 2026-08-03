@@ -14,7 +14,7 @@ Adds a `**Recomendación:**` line to a TODO item that already has solution optio
 Antes de cualquier otra cosa (incluida la resolución de proyecto, que puede crear archivos):
 
 ```bash
-"${CLAUDE_PLUGIN_ROOT}/bin/todo-guard.sh" open
+"${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-guard.sh" open
 ```
 
 Esto autoriza las escrituras a `.todo/` que hará este skill. El hook `todo-guard` bloquea cualquier edición de `.todo/` que no venga precedida de esta apertura.
@@ -22,7 +22,7 @@ Esto autoriza las escrituras a `.todo/` que hará este skill. El hook `todo-guar
 ### 0a. Resolver el proyecto (repo vs registro central)
 
 ```bash
-MODE=$("${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" mode)
+MODE=$("${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" mode)
 echo "$MODE"
 ```
 
@@ -30,13 +30,13 @@ echo "$MODE"
 - Si `MODE` es `nonrepo`: listar proyectos y elegir cuál operar (solo existentes; este skill no crea proyectos):
 
 ```bash
-"${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" list
+"${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" list
 ```
 
 Mostrar con `AskUserQuestion` un menú con una opción por proyecto (usar el `<name>`). Si la lista está vacía, informar que no hay proyectos registrados y terminar. Luego posicionarse:
 
 ```bash
-cd "$("${CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" path "<id elegido>")"
+cd "$("${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" path "<id elegido>")"
 ```
 
 ### 0. Detect and migrate legacy files
