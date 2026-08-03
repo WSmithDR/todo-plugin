@@ -6,6 +6,9 @@ import { guard } from "../../core/rules/guard.ts"
 import { errorTriage } from "../../core/rules/error-triage.ts"
 import { branchDoing } from "../../core/rules/branch-doing.ts"
 import { sessionSetup } from "../../core/rules/session-setup.ts"
+import { editingItem } from "../../core/rules/editing-item.ts"
+import { openItems, openItemTitles, readTodoFile } from "../../core/todo-files.ts"
+import { markAdvisedOnce } from "../../core/session-state.ts"
 import { isWindowOpen } from "../../core/window.ts"
 import { currentBranch, guardEnabled } from "../claude-code/context.ts"
 import { injectConfig, type OpenCodeConfig } from "./config.ts"
@@ -21,9 +24,15 @@ import { toToolEvent } from "./normalize.ts"
  *
  *   shell.env             el root del plugin, que OpenCode no setea
  *   config                skills + /comandos + agentes
- *   tool.execute.before   guard                          (PreToolUse)
- *   tool.execute.after    error-triage + branch-doing     (PostToolUse)
+ *   tool.execute.before   guard                                        (PreToolUse)
+ *   tool.execute.after    error-triage + branch-doing + editing-item    (PostToolUse)
  *   system.transform      índice de skills + el aviso de setup de sesión
+ *
+ * SIN equivalente: el `session-end` de Claude Code, que recuerda cerrar lo que
+ * quedó en DOING.md si hubo commits. OpenCode expone un hook `event`, pero su
+ * tipo no declara qué eventos existen y adivinar un nombre daría un hook que no
+ * dispara nunca — declarado y no verificado, justo lo que el conformance check
+ * existe para evitar. Se cablea cuando el nombre esté confirmado.
  *
  * El equivalente de SessionStart no es un hook: los efectos corren una vez acá,
  * al construir el plugin, y el aviso resultante se cuelga del system prompt. Un
@@ -66,6 +75,12 @@ export function createHooks(directory: string, root: string = PLUGIN_ROOT) {
         mergeDecisions([
           errorTriage(event, { hasTodoDir }),
           branchDoing(event, { hasTodoDir, branch: hasTodoDir ? currentBranch(directory) : "" }),
+          editingItem(event, {
+            hasTodoDir,
+            todo: hasTodoDir ? openItems(readTodoFile(directory, "TODO.md")) : [],
+            doing: hasTodoDir ? openItemTitles(readTodoFile(directory, "DOING.md")) : [],
+            advisedOnce: (subject) => markAdvisedOnce(directory, subject),
+          }),
         ]),
         output,
       )

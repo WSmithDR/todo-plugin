@@ -23,11 +23,21 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Bash",
+        "matcher": "Bash|Edit|Write|MultiEdit",
         "hooks": [
           {
             "type": "command",
             "command": "bash ${CLAUDE_PLUGIN_ROOT}/bin/run.sh ${CLAUDE_PLUGIN_ROOT}/src/adapters/claude-code/hook.ts post-tool-use"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/bin/run.sh ${CLAUDE_PLUGIN_ROOT}/src/adapters/claude-code/hook.ts session-end"
           }
         ]
       }

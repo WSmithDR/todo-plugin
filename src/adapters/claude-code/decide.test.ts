@@ -31,11 +31,28 @@ const payload = (value: unknown): string => JSON.stringify(value)
 
 // ── fail-open ──────────────────────────────────────────────────────────────
 
-test("un payload ilegible deja pasar en los tres modos", () => {
-  for (const mode of ["pre-tool-use", "post-tool-use", "session-start"] as const) {
+test("un payload ilegible deja pasar en los cuatro modos", () => {
+  for (const mode of ["pre-tool-use", "post-tool-use", "session-start", "session-end"] as const) {
     assert.equal(decide("no soy json", mode).action, "allow", mode)
     assert.equal(decide("", mode).action, "allow", mode)
   }
+})
+
+// ── session-end ────────────────────────────────────────────────────────────
+
+test("session-end sin commits desde el arranque → allow", () => {
+  withProject((cwd) => {
+    writeFileSync(join(cwd, ".todo", "DOING.md"), "- [ ] **Una tarea** — en curso\n")
+    // session-start ancla el HEAD; sin commits en el medio, no avisa.
+    decide(payload({ cwd }), "session-start")
+    assert.equal(decide(payload({ cwd }), "session-end").action, "allow")
+  })
+})
+
+test("session-end sin DOING → allow", () => {
+  withProject((cwd) => {
+    assert.equal(decide(payload({ cwd }), "session-end").action, "allow")
+  })
 })
 
 // ── session-start ──────────────────────────────────────────────────────────

@@ -3,8 +3,12 @@ import { guard } from "../../core/rules/guard.ts"
 import { errorTriage } from "../../core/rules/error-triage.ts"
 import { branchDoing } from "../../core/rules/branch-doing.ts"
 import { sessionSetup } from "../../core/rules/session-setup.ts"
+import { sessionClose } from "../../core/rules/session-close.ts"
+import { editingItem } from "../../core/rules/editing-item.ts"
 import { isWindowOpen } from "../../core/window.ts"
-import { currentBranch, guardEnabled, hasTodoDir } from "./context.ts"
+import { openItems, openItemTitles, readTodoFile } from "../../core/todo-files.ts"
+import { lastSeenHead, markAdvisedOnce, rememberHead } from "../../core/session-state.ts"
+import { currentBranch, currentHead, guardEnabled, hasTodoDir } from "./context.ts"
 import { parsePayload, toToolEvent, type ClaudePayload } from "./normalize.ts"
 
 /**
@@ -20,7 +24,9 @@ import { parsePayload, toToolEvent, type ClaudePayload } from "./normalize.ts"
  * inesperado deja al usuario sin poder trabajar. El fail-CLOSED está donde
  * corresponde —la ventana del guard, que sin sentinela bloquea—.
  */
-export function decide(raw: string, mode: "pre-tool-use" | "post-tool-use" | "session-start"): Decision {
+export type Mode = "pre-tool-use" | "post-tool-use" | "session-start" | "session-end"
+
+export function decide(raw: string, mode: Mode): Decision {
   const payload = parsePayload(raw)
   if (!payload) return ALLOW
 
@@ -31,6 +37,8 @@ export function decide(raw: string, mode: "pre-tool-use" | "post-tool-use" | "se
       return postToolUse(payload)
     case "session-start":
       return sessionStart(payload)
+    case "session-end":
+      return sessionEnd(payload)
   }
 }
 
@@ -46,14 +54,42 @@ export function preToolUse(payload: ClaudePayload): Decision {
  */
 export function postToolUse(payload: ClaudePayload): Decision {
   const event = toToolEvent(payload, "after")
-  const todo = hasTodoDir(event.cwd)
+  const cwd = event.cwd
+  const todo = hasTodoDir(cwd)
 
   return mergeDecisions([
     errorTriage(event, { hasTodoDir: todo }),
-    branchDoing(event, { hasTodoDir: todo, branch: todo ? currentBranch(event.cwd) : "" }),
+    branchDoing(event, { hasTodoDir: todo, branch: todo ? currentBranch(cwd) : "" }),
+    editingItem(event, {
+      hasTodoDir: todo,
+      todo: todo ? openItems(readTodoFile(cwd, "TODO.md")) : [],
+      doing: todo ? openItemTitles(readTodoFile(cwd, "DOING.md")) : [],
+      advisedOnce: (subject) => markAdvisedOnce(cwd, subject),
+    }),
   ])
 }
 
 export function sessionStart(payload: ClaudePayload): Decision {
-  return sessionSetup({ cwd: payload.cwd ?? process.cwd() })
+  const cwd = payload.cwd ?? process.cwd()
+  // Se ancla el HEAD acá para que session-end pueda decir si hubo commits.
+  const head = currentHead(cwd)
+  if (head) rememberHead(cwd, head)
+  return sessionSetup({ cwd })
+}
+
+export function sessionEnd(payload: ClaudePayload): Decision {
+  const cwd = payload.cwd ?? process.cwd()
+  const todo = hasTodoDir(cwd)
+  const head = currentHead(cwd)
+
+  const decision = sessionClose({
+    hasTodoDir: todo,
+    doing: todo ? openItemTitles(readTodoFile(cwd, "DOING.md")) : [],
+    headMoved: head !== "" && lastSeenHead(cwd) !== "" && lastSeenHead(cwd) !== head,
+  })
+
+  // Se re-ancla igual: si no, la próxima sesión compararía contra un HEAD viejo
+  // y avisaría por commits que ya se reportaron.
+  if (head) rememberHead(cwd, head)
+  return decision
 }

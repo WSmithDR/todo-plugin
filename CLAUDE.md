@@ -149,8 +149,20 @@ src/adapters/claude-code/hook.ts <modo>`.
 | `PreToolUse(Edit/Write/MultiEdit/Bash)` | Escritura sobre `.todo/` | `guard`: solo pasa dentro de la ventana que abre un skill. Bypass: `TODO_GUARD=off` | `deny` |
 | `PostToolUse(Bash)` | Comando fallido | `error-triage`: evalúa si merece una tarea | `advise` |
 | `PostToolUse(Bash)` | `git switch` / `checkout -b` a rama de feature | `branch-doing`: recuerda mover la tarea a DOING.md | `advise` |
+| `PostToolUse(Edit/Write/MultiEdit)` | Editar un archivo que una tarea abierta menciona | `editing-item`: sugiere `todo-doing` | `advise` |
+| `SessionEnd` | Fin de sesión con commits | `session-close`: recuerda cerrar lo que quedó en DOING.md | `advise` |
 
-Los dos `PostToolUse` corren en **un solo proceso** que mergea sus decisiones.
+Los tres `PostToolUse` corren en **un solo proceso** que mergea sus decisiones.
+
+**Cobertura del ciclo de vida.** `branch-doing` solo dispara al cambiar de rama, así
+que con varias tareas en la misma rama únicamente la primera avisaba;
+`editing-item` cubre eso mirando qué archivo estás tocando. `session-close` cubre
+el otro extremo: después del último commit no había ninguna señal.
+
+Los dos avisan **una sola vez** — `editing-item` por tarea y por proyecto,
+`session-close` solo si HEAD se movió. El estado vive en
+`src/core/session-state.ts`, sobre el cache: perderlo cuesta un aviso repetido,
+nada más. Un aviso que se repite es ruido que el modelo aprende a saltear.
 
 ### OpenCode (`.opencode/plugins/todo-plugin.ts` → `src/adapters/opencode/`)
 
@@ -159,8 +171,13 @@ Los dos `PostToolUse` corren en **un solo proceso** que mergea sus decisiones.
 | `shell.env` | Inyecta `TODO_PLUGIN_ROOT` y `CLAUDE_PLUGIN_ROOT` | — (OpenCode no las setea) |
 | `config` | Registra `skills/`, un `/comando` por skill y traduce `agents/*.md` | — |
 | `tool.execute.before` | Guard. `deny` → `throw` (cancela la tool call) | `PreToolUse` |
-| `tool.execute.after` | error-triage + branch-doing. `advise` → anexa a `output.output` | `PostToolUse` |
+| `tool.execute.after` | error-triage + branch-doing + editing-item. `advise` → anexa a `output.output` | `PostToolUse` |
 | `experimental.chat.system.transform` | Índice de skills + aviso de setup | `SessionStart` |
+
+**Sin equivalente:** el `SessionEnd` de Claude Code. OpenCode expone un hook
+`event`, pero su tipo no declara qué eventos existen, y adivinar un nombre daría
+un hook que no dispara nunca — declarado y no verificado, justo lo que el
+conformance check existe para evitar. Se cablea cuando el nombre esté confirmado.
 
 El equivalente de `SessionStart` no es un hook: los efectos corren al construir el
 plugin (el factory recibe `directory`) y el aviso se cuelga del system prompt.

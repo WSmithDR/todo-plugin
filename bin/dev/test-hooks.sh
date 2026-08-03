@@ -86,6 +86,9 @@ _check "post: comando fallido → 2" \
     "$(_hook post-tool-use "{\"cwd\":\"$TMP_PROJ\",\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"npm run build\"},\"tool_response\":{\"exit_code\":1,\"stderr\":\"boom\"}}")" "2"
 rm -rf "$TMP_PROJ"
 
+_check "session-end: sin commits en el medio → 0" \
+    "$(_hook session-end "{\"cwd\":\"$TMP_PROJ\"}")" "0"
+
 _check "modo desconocido → 1" \
     "$(_hook modo-inventado '{}')" "1"
 

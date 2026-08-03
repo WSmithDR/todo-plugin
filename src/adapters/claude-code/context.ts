@@ -17,12 +17,17 @@ export const guardEnabled = (env = process.env): boolean => env.TODO_GUARD !== "
  * el string del comando: `git switch -` o un alias no se pueden leer del texto.
  */
 export function currentBranch(cwd: string): string {
+  return git(cwd, "rev-parse", "--abbrev-ref", "HEAD")
+}
+
+/** El SHA de HEAD. Comparado entre inicio y fin de sesión, dice si hubo commits. */
+export function currentHead(cwd: string): string {
+  return git(cwd, "rev-parse", "HEAD")
+}
+
+function git(cwd: string, ...args: string[]): string {
   try {
-    return execFileSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], {
-      cwd,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-    }).trim()
+    return execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim()
   } catch {
     return ""
   }

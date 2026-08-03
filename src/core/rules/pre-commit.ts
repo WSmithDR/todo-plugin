@@ -1,5 +1,8 @@
 import { ALLOW, advise, deny, type Decision } from "../protocol.ts"
 
+// Re-export por compatibilidad: el parseo ahora vive en core/todo-files.ts.
+export { openItemTitles } from "../todo-files.ts"
+
 export type PreCommitInput = {
   hasTodoDir: boolean
   /** Archivos en staging (los primeros, para no inundar el mensaje). */
@@ -60,15 +63,4 @@ Instrucciones:
   4. No bloquear el commit si no hay coincidencias claras.`)
 
   return advise(sections.join("\n"))
-}
-
-/** `- [ ] **Título** — descripción` → `Título`. */
-export function openItemTitles(markdown: string): string[] {
-  const titles: string[] = []
-  for (const line of markdown.split("\n")) {
-    if (!line.startsWith("- [ ]")) continue
-    const match = line.match(/^- \[ \] \*\*([^*]+)\*\*/)
-    titles.push(match ? match[1]!.trim() : line)
-  }
-  return titles
 }
