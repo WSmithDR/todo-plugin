@@ -59,12 +59,19 @@ npx tsc --noEmit                 # único typecheck del proyecto; corre en CI
 | `src/core/window.ts` | Ventana de escritura del guard |
 | `src/core/store.ts` | Registro central de proyectos sin repo |
 | `src/core/discovery.ts` | Escanea `skills/` y `agents/` leyendo frontmatter |
+| `src/adapters/claude-code/` | `normalize` (payload → `ToolEvent`), `decide` (→ `Decision`), `emit` (→ exit code) |
+| `src/cli/` | Lo que invocan las skills y git: `todo-guard`, `todo-store`, `pre-commit` |
 
-`core/` no sabe qué CLI está corriendo: esa traducción es de `adapters/` (fase 2).
+`core/` no sabe qué CLI está corriendo: esa traducción es de `adapters/`.
 Ver `docs/superpowers/specs/2026-08-03-migracion-typescript-multi-cli-design.md`.
 
-Hasta que las fases 2 y 3 cableen los adapters, **lo que corre en producción sigue
-siendo el bash de `bin/`**. Un fix hecho solo en `src/` todavía no llega al usuario.
+**En Claude Code ya corre todo sobre TS.** OpenCode sigue con paridad parcial
+hasta la fase 3.
+
+Los archivos de `bin/` que quedan son shims de 8 líneas sin lógica: resuelven el
+runtime y delegan. `bin/todo-guard.sh` y `bin/todo-store.sh` conservan su nombre
+a propósito — las 12 SKILL.md los invocan por ahí, y mantener esa interfaz
+estable es lo que permitió migrar sin tocar ni una skill.
 
 ## Manifiestos de los CLIs
 

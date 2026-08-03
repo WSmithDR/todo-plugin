@@ -1,7 +1,7 @@
 # Migración a TypeScript con arquitectura multi-CLI
 
 **Fecha:** 2026-08-03
-**Estado:** Fases 0, 0.5 y 1 implementadas (v1.21.15); fases 2–4 pendientes
+**Estado:** Fases 0–2 implementadas (v1.21.16); fases 3 y 4 pendientes
 
 ## Problema
 
@@ -186,13 +186,18 @@ desincronicen.
 
 ### Qué muere y qué sobrevive en bash
 
-**Se borra:** `bin/todo-guard.sh`, `bin/todo-store.sh`, `bin/hooks/*.sh`,
-`.opencode/plugins/lib/**` (todo el bridge JS, incluido el `spawn bash → spawn
-python3` con timeout de 2 s).
+**Borrado en la fase 2:** `bin/hooks/session-start.sh`, `error-checker.sh` y
+`branch-doing.sh`. Pendiente para la fase 3: `.opencode/plugins/lib/**`, el bridge
+JS que todavía hace `spawn bash → spawn node` con timeout de 2 s.
 
-**Queda en bash a propósito:** `bin/run.sh` (3 líneas); `bin/hooks/pre-commit.sh`
-reducido a 2 líneas porque git exige un ejecutable; `bin/dev/*.sh` y
-`bin/install-opencode.sh`, que son herramientas de desarrollo.
+**Queda en bash a propósito:** `bin/run.sh` y los tres shims
+(`todo-guard.sh`, `todo-store.sh`, `hooks/pre-commit.sh`), de 8 líneas y sin
+lógica; `bin/dev/*.sh` y `bin/install-opencode.sh`, que son de desarrollo.
+
+Los shims conservan sus nombres: las 12 SKILL.md invocan `bin/todo-guard.sh` y
+`bin/todo-store.sh`, y mantener esa interfaz estable permitió migrar sin editar
+ninguna skill. El shim resuelve su propio symlink antes del `dirname` — el de
+pre-commit se instala en `.git/hooks/`, y sin eso el root apunta a `.git/`.
 
 **python3** desaparece del runtime. Sigue en `bin/dev/git-hooks/post-commit` y en
 `install-opencode.sh`.
@@ -319,7 +324,7 @@ Y corre en CI, no solo a pedido. Es lo único que distingue "soportamos 6 CLIs" 
 | **0** | `shell.env` + namespaceo del plugin root | ✅ v1.21.9 |
 | **0.5** | `cli-config.yaml` + generador + `--check` en CI | ✅ v1.21.13 |
 | **1** | `core/` + protocol + tests, sin cablear nada | ✅ v1.21.15 |
-| **2** | Adapter Claude Code + `hooks.json` + borrar los bash | pendiente |
+| **2** | Adapter Claude Code + `hooks.json` + borrar los bash | ✅ v1.21.16 |
 | **3** | Adapter OpenCode completo → paridad (B)(C)(D)(E) | pendiente |
 | **4** | Conformance check en `todo-health` + docs + limpieza | pendiente |
 
@@ -384,11 +389,8 @@ primero. El impacto exacto sobre `claude plugin update` no está medido; el drif
 es real igual. Lo arregla la fase 0.5, que pone la versión en `cli-config.yaml` y
 proyecta a los dos manifiestos desde ahí.
 
-**Los 3 items abiertos en TODO.md ya están arreglados en `src/core/store.ts`**
-(directorio huérfano si falla `git commit` en `create`, `$PWD` lógico vs físico
-en `mode`, y el slug que descarta acentos), con un test de regresión cada uno.
-Pero siguen abiertos a propósito: lo que corre en producción es el bash, y los
-fixes no llegan al usuario hasta que la fase 2 cablee el adapter. Se cierran ahí.
+**~~Los 3 items abiertos en TODO.md~~** — cerrados en la fase 2, cuando el CLI
+del store pasó a ser el TS y los fixes llegaron a producción.
 
 ## Fuera de alcance
 

@@ -24,151 +24,127 @@ run_in_tmpdir() {
 }
 
 echo ""
-echo "=== session-start.sh ==="
 
-# Sin .todo/ → exit 0 silencioso
-result=$(run_in_tmpdir '
-    out=$(bash '"$HOOKS_DIR"'/session-start.sh 2>&1); rc=$?
-    [ $rc -eq 0 ] && [ -z "$out" ] && echo OK || echo "rc=$rc out=$out"
-')
-[ "$result" = "OK" ] && _pass "sin .todo/ → exit 0 silencioso" || _fail "sin .todo/ → $result"
+echo "=== entrypoints (bin/run.sh → src/) ==="
 
-# .todo/ + config.json → exit 0 silencioso (sin .git, CLAUDE_PLUGIN_ROOT vacío)
-result=$(run_in_tmpdir '
-    mkdir -p .todo && echo "{}" > .todo/config.json
-    out=$(CLAUDE_PLUGIN_ROOT="" bash '"$HOOKS_DIR"'/session-start.sh 2>&1); rc=$?
-    [ $rc -eq 0 ] && [ -z "$out" ] && echo OK || echo "rc=$rc out=$out"
-')
-[ "$result" = "OK" ] && _pass ".todo/ + config.json → exit 0 silencioso" || _fail ".todo/ + config.json → $result"
+# Los tests de las reglas viven en src/**/*.test.ts. Acá se prueba solo lo que
+# TypeScript no puede probarse a sí mismo: que el shim encuentre el runtime, que
+# resuelva su propio symlink, que el payload entre por stdin y que el exit code
+# que sale sea el que Claude Code espera.
 
-# .todo/ sin config.json → exit 2 + TODO-CONFIG-MISSING
-result=$(run_in_tmpdir '
-    mkdir -p .todo
-    err=$(CLAUDE_PLUGIN_ROOT="" bash '"$HOOKS_DIR"'/session-start.sh 2>&1); rc=$?
-    [ $rc -eq 2 ] && echo "$err" | grep -q "TODO-CONFIG-MISSING" && echo OK || echo "rc=$rc err=$err"
-')
-[ "$result" = "OK" ] && _pass ".todo/ sin config.json → exit 2 + TODO-CONFIG-MISSING" || _fail ".todo/ sin config.json → $result"
+HOOK="$REPO_ROOT/src/adapters/claude-code/hook.ts"
+RUN="$REPO_ROOT/bin/run.sh"
 
-# .git/ + CLAUDE_PLUGIN_ROOT set + hook no instalado → instala el hook
-result=$(run_in_tmpdir '
-    mkdir -p .todo .git/hooks && echo "{}" > .todo/config.json
-    FAKE_ROOT=$(mktemp -d)
-    mkdir -p "$FAKE_ROOT/bin/hooks"
-    touch "$FAKE_ROOT/bin/hooks/pre-commit.sh"
-    out=$(CLAUDE_PLUGIN_ROOT="$FAKE_ROOT" bash '"$HOOKS_DIR"'/session-start.sh 2>&1); rc=$?
-    [ $rc -eq 0 ] && [ -L ".git/hooks/pre-commit" ] && echo "$out" | grep -q "TODO-SETUP" && echo OK || echo "rc=$rc out=$out link=$(readlink .git/hooks/pre-commit 2>/dev/null || echo none)"
-    rm -rf "$FAKE_ROOT"
-')
-[ "$result" = "OK" ] && _pass ".git/ + CLAUDE_PLUGIN_ROOT → hook instalado" || _fail ".git/ + CLAUDE_PLUGIN_ROOT → $result"
+_hook() {  # _hook <modo> <payload-json>; imprime el exit code
+    printf '%s' "$2" | bash "$RUN" "$HOOK" "$1" >/dev/null 2>&1
+    echo $?
+}
+_hook_err() {  # _hook_err <modo> <payload-json>; imprime el stderr
+    printf '%s' "$2" | bash "$RUN" "$HOOK" "$1" 2>&1 >/dev/null
+}
 
-# Hook ya instalado correctamente → sin reinstalar
-result=$(run_in_tmpdir '
-    mkdir -p .todo .git/hooks && echo "{}" > .todo/config.json
-    FAKE_ROOT=$(mktemp -d)
-    mkdir -p "$FAKE_ROOT/bin/hooks"
-    touch "$FAKE_ROOT/bin/hooks/pre-commit.sh"
-    ln -sf "$FAKE_ROOT/bin/hooks/pre-commit.sh" .git/hooks/pre-commit
-    out=$(CLAUDE_PLUGIN_ROOT="$FAKE_ROOT" bash '"$HOOKS_DIR"'/session-start.sh 2>&1); rc=$?
-    [ $rc -eq 0 ] && [ -z "$out" ] && echo OK || echo "rc=$rc out=$out"
-    rm -rf "$FAKE_ROOT"
-')
-[ "$result" = "OK" ] && _pass "hook ya instalado → sin reinstalar" || _fail "hook ya instalado → $result"
+_check() { [ "$2" = "$3" ] && _pass "$1" || _fail "$1 (esperaba $3, dio $2)"; }
 
-echo ""
-echo "=== pre-commit.sh ==="
+# El shim encuentra un runtime capaz de ejecutar .ts
+bash "$RUN" "$REPO_ROOT/src/cli/todo-store.ts" mode >/dev/null 2>&1
+_check "bin/run.sh ejecuta un .ts" "$?" "0"
 
-# Sin .todo/ → exit 0
-result=$(run_in_tmpdir '
-    git init -q && git config user.email "t@t.com" && git config user.name "T"
-    out=$(bash '"$HOOKS_DIR"'/pre-commit.sh 2>&1); rc=$?
-    [ $rc -eq 0 ] && [ -z "$out" ] && echo OK || echo "rc=$rc out=$out"
-')
-[ "$result" = "OK" ] && _pass "sin .todo/ → exit 0 silencioso" || _fail "sin .todo/ → $result"
+# pre-tool-use
+_check "pre: Edit fuera de .todo → 0" \
+    "$(_hook pre-tool-use '{"tool_name":"Edit","tool_input":{"file_path":"/p/src/x.ts"}}')" "0"
 
-# .todo/ sin tareas abiertas → exit 0
-result=$(run_in_tmpdir '
-    git init -q && git config user.email "t@t.com" && git config user.name "T"
-    mkdir -p .todo && touch .todo/DOING.md .todo/TODO.md
-    out=$(bash '"$HOOKS_DIR"'/pre-commit.sh 2>&1); rc=$?
-    [ $rc -eq 0 ] && [ -z "$out" ] && echo OK || echo "rc=$rc out=$out"
-')
-[ "$result" = "OK" ] && _pass ".todo/ sin tareas → exit 0 silencioso" || _fail ".todo/ sin tareas → $result"
+export XDG_CACHE_HOME="$(mktemp -d)"   # ventana cerrada, sin depender de la máquina
+_check "pre: Edit en .todo sin ventana → 2" \
+    "$(_hook pre-tool-use '{"tool_name":"Edit","tool_input":{"file_path":"/p/.todo/TODO.md"}}')" "2"
 
-# Tareas en DOING + staged files → exit 1 + mensaje
-result=$(run_in_tmpdir '
-    git init -q && git config user.email "t@t.com" && git config user.name "T"
-    mkdir -p .todo
-    echo "- [ ] **Tarea de prueba** — descripción" > .todo/DOING.md
-    echo "contenido" > archivo.txt && git add archivo.txt
-    err=$(bash '"$HOOKS_DIR"'/pre-commit.sh 2>&1); rc=$?
-    [ $rc -eq 1 ] && echo "$err" | grep -q "TODO-PRE-COMMIT" && echo OK || echo "rc=$rc err=$err"
-')
-[ "$result" = "OK" ] && _pass "tareas en DOING + staged → exit 1 + TODO-PRE-COMMIT" || _fail "tareas en DOING + staged → $result"
+case "$(_hook_err pre-tool-use '{"tool_name":"Edit","tool_input":{"file_path":"/p/.todo/TODO.md"}}')" in
+    *TODO-GUARD*) _pass "pre: el mensaje del guard sale por stderr" ;;
+    *) _fail "pre: no salió TODO-GUARD por stderr" ;;
+esac
+
+bash "$REPO_ROOT/bin/todo-guard.sh" open
+_check "pre: con la ventana abierta → 0" \
+    "$(_hook pre-tool-use '{"tool_name":"Edit","tool_input":{"file_path":"/p/.todo/TODO.md"}}')" "0"
+unset XDG_CACHE_HOME
+
+# Fail-open: si el adapter no entiende el payload, no bloquea
+_check "payload ilegible → 0 (fail-open)" "$(_hook pre-tool-use 'no soy json')" "0"
+_check "payload vacío → 0 (fail-open)"    "$(_hook pre-tool-use '')" "0"
+
+# session-start y post-tool-use, contra un proyecto real
+TMP_PROJ="$(mktemp -d)"; mkdir -p "$TMP_PROJ/.todo"
+_check "session-start: .todo sin config → 2" \
+    "$(_hook session-start "{\"cwd\":\"$TMP_PROJ\"}")" "2"
+case "$(_hook_err session-start "{\"cwd\":\"$TMP_PROJ\"}")" in
+    *TODO-CONFIG-MISSING*) _pass "session-start: pide todo-config" ;;
+    *) _fail "session-start: no pidió todo-config" ;;
+esac
+
+_check "post: comando ok → 0" \
+    "$(_hook post-tool-use "{\"cwd\":\"$TMP_PROJ\",\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"npm run build\"},\"tool_response\":{\"exit_code\":0}}")" "0"
+_check "post: comando fallido → 2" \
+    "$(_hook post-tool-use "{\"cwd\":\"$TMP_PROJ\",\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"npm run build\"},\"tool_response\":{\"exit_code\":1,\"stderr\":\"boom\"}}")" "2"
+rm -rf "$TMP_PROJ"
+
+_check "modo desconocido → 1" \
+    "$(_hook modo-inventado '{}')" "1"
 
 echo ""
-echo "=== error-checker.sh ==="
+echo "=== shim del git pre-commit (symlinkeado) ==="
 
-# Input: comando exitoso → exit 0
-result=$(run_in_tmpdir '
-    mkdir -p .todo
-    input='"'"'{"tool_input":{"command":"echo ok"},"tool_response":{"is_error":false}}'"'"'
-    out=$(echo "$input" | bash '"$HOOKS_DIR"'/error-checker.sh 2>&1); rc=$?
-    [ $rc -eq 0 ] && echo OK || echo "rc=$rc out=$out"
-')
-[ "$result" = "OK" ] && _pass "comando exitoso → exit 0 silencioso" || _fail "comando exitoso → $result"
+# El shim se instala como symlink en .git/hooks/. Sin resolver el symlink antes
+# del dirname, ROOT apunta a .git/ y el hook no encuentra nada.
+result=$(run_in_tmpdir "
+    git init -q && git config user.email 't@t.com' && git config user.name 'T'
+    mkdir -p .todo .git/hooks
+    printf '# DOING\n\n- [ ] **Una tarea** — en curso\n' > .todo/DOING.md
+    printf '# TODO\n' > .todo/TODO.md
+    ln -sf '$REPO_ROOT/bin/hooks/pre-commit.sh' .git/hooks/pre-commit
+    echo x > f.txt && git add f.txt
+    out=\$(git commit -m 'fix: algo' 2>&1); rc=\$?
+    case \"\$out\" in
+        *TODO-PRE-COMMIT*) [ \$rc -ne 0 ] && echo OK || echo 'no bloqueó' ;;
+        *) echo \"sin mensaje: \$out\" ;;
+    esac
+")
+[ "$result" = "OK" ] && _pass "el shim resuelve su symlink y bloquea el commit" || _fail "shim symlinkeado → $result"
 
-# Input: comando fallido con .todo/ → exit 2 + mensaje
-result=$(run_in_tmpdir '
-    mkdir -p .todo
-    input='"'"'{"tool_input":{"command":"python3 run.py"},"tool_response":{"is_error":true,"content":[{"text":"ModuleNotFoundError"}]}}'"'"'
-    err=$(echo "$input" | bash '"$HOOKS_DIR"'/error-checker.sh 2>&1); rc=$?
-    [ $rc -eq 2 ] && echo "$err" | grep -q "TODO-ERROR-CHECKER" && echo OK || echo "rc=$rc err=$err"
-')
-[ "$result" = "OK" ] && _pass "comando fallido → exit 2 + TODO-ERROR-CHECKER" || _fail "comando fallido → $result"
+# '- [x]' staged → bloqueo duro
+result=$(run_in_tmpdir "
+    git init -q && git config user.email 't@t.com' && git config user.name 'T'
+    mkdir -p .todo .git/hooks
+    printf '# TODO\n' > .todo/TODO.md
+    git add -A && git commit -q --no-verify -m init
+    printf '# TODO\n\n- [x] **Marcado a mano**\n' > .todo/TODO.md
+    ln -sf '$REPO_ROOT/bin/hooks/pre-commit.sh' .git/hooks/pre-commit
+    git add .todo/TODO.md
+    out=\$(git commit -m 'fix: algo' 2>&1)
+    case \"\$out\" in
+        *'--no-verify NO corresponde'*) echo OK ;;
+        *) echo \"\$out\" ;;
+    esac
+")
+[ "$result" = "OK" ] && _pass "'- [x]' staged → bloqueo duro" || _fail "checkbox a mano → $result"
 
 echo ""
-echo "=== branch-doing.sh ==="
+echo "=== CLI del store (vía shim) ==="
 
-# git checkout -b a rama feature con .todo/ → exit 2 + TODO-DOING + nombre de rama
-result=$(run_in_tmpdir '
-    git init -q -b main && git config user.email "t@t.com" && git config user.name "T"
-    git commit -q --allow-empty -m init
-    mkdir -p .todo && git checkout -q -b feat/cobranzas
-    input='"'"'{"tool_input":{"command":"git checkout -b feat/cobranzas"}}'"'"'
-    err=$(echo "$input" | bash '"$HOOKS_DIR"'/branch-doing.sh 2>&1); rc=$?
-    [ $rc -eq 2 ] && echo "$err" | grep -q "TODO-DOING" && echo "$err" | grep -q "feat/cobranzas" && echo OK || echo "rc=$rc err=$err"
-')
-[ "$result" = "OK" ] && _pass "checkout -b feature → exit 2 + TODO-DOING" || _fail "checkout -b feature → $result"
+result=$(run_in_tmpdir "
+    export XDG_DATA_HOME=\"\$PWD/data\"
+    id=\$(bash '$REPO_ROOT/bin/todo-store.sh' create 'Café Central')
+    listed=\$(bash '$REPO_ROOT/bin/todo-store.sh' list)
+    dir=\$(bash '$REPO_ROOT/bin/todo-store.sh' path \"\$id\")
+    [ \"\$id\" = 'cafe-central' ] && [ \"\$listed\" = \"\$id\"\$'\t''Café Central' ] && [ -d \"\$dir/.todo\" ] \
+        && echo OK || echo \"id=\$id listed=\$listed dir=\$dir\"
+")
+[ "$result" = "OK" ] && _pass "create/list/path conservan el formato que parsean las skills" || _fail "store CLI → $result"
 
-# En rama base (main) → exit 0 silencioso
-result=$(run_in_tmpdir '
-    git init -q -b main && git config user.email "t@t.com" && git config user.name "T"
-    git commit -q --allow-empty -m init && mkdir -p .todo
-    input='"'"'{"tool_input":{"command":"git switch main"}}'"'"'
-    out=$(echo "$input" | bash '"$HOOKS_DIR"'/branch-doing.sh 2>&1); rc=$?
-    [ $rc -eq 0 ] && [ -z "$out" ] && echo OK || echo "rc=$rc out=$out"
-')
-[ "$result" = "OK" ] && _pass "en main → exit 0 silencioso" || _fail "en main → $result"
-
-# Sin .todo/ → exit 0 silencioso (aunque sea rama feature)
-result=$(run_in_tmpdir '
-    git init -q -b main && git config user.email "t@t.com" && git config user.name "T"
-    git commit -q --allow-empty -m init && git checkout -q -b feat/x
-    input='"'"'{"tool_input":{"command":"git checkout -b feat/x"}}'"'"'
-    out=$(echo "$input" | bash '"$HOOKS_DIR"'/branch-doing.sh 2>&1); rc=$?
-    [ $rc -eq 0 ] && [ -z "$out" ] && echo OK || echo "rc=$rc out=$out"
-')
-[ "$result" = "OK" ] && _pass "sin .todo/ → exit 0 silencioso" || _fail "sin .todo/ → $result"
-
-# Comando que no cambia de rama (checkout de archivo) en feature → exit 0 silencioso
-result=$(run_in_tmpdir '
-    git init -q -b main && git config user.email "t@t.com" && git config user.name "T"
-    git commit -q --allow-empty -m init && mkdir -p .todo && git checkout -q -b feat/x
-    input='"'"'{"tool_input":{"command":"git checkout README.md"}}'"'"'
-    out=$(echo "$input" | bash '"$HOOKS_DIR"'/branch-doing.sh 2>&1); rc=$?
-    [ $rc -eq 0 ] && [ -z "$out" ] && echo OK || echo "rc=$rc out=$out"
-')
-[ "$result" = "OK" ] && _pass "checkout de archivo → exit 0 silencioso" || _fail "checkout de archivo → $result"
+result=$(run_in_tmpdir "
+    export XDG_DATA_HOME=\"\$PWD/data\"
+    bash '$REPO_ROOT/bin/todo-store.sh' path '../fuera' >/dev/null 2>&1
+    [ \$? -ne 0 ] && echo OK || echo 'aceptó un id con traversal'
+")
+[ "$result" = "OK" ] && _pass "path rechaza un id con traversal" || _fail "traversal → $result"
 
 echo ""
 echo "=== post-commit (versionado) ==="
