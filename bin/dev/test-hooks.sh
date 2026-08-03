@@ -224,6 +224,12 @@ result=$(run_in_tmpdir "
 ")
 [ "$result" = "OK" ] && _pass "hook instalado + commit real → bump único (sin recursión)" || _fail "recursión → $result"
 
+# Dos hooks que escriban la versión = dos bumps por commit. Pasó de verdad:
+# prepare-commit-msg quedó instalado junto a post-commit y 1.21.8 saltó a 1.21.10.
+BUMPERS=$(grep -l 'd\["version"\] = new_version' "$GIT_HOOKS_DIR"/* 2>/dev/null | wc -l)
+[ "$BUMPERS" = "1" ] && _pass "un solo hook bumpea la versión" \
+    || _fail "$BUMPERS hooks bumpean la versión (deben ser 1 — instalados juntos duplican el bump)"
+
 echo ""
 echo "=== bridge OpenCode (shell.env) ==="
 

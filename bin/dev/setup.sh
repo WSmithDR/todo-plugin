@@ -21,11 +21,32 @@ install_hook() {
     fi
 }
 
+# Desinstala hooks que este repo ya no provee, pero que un setup viejo dejó
+# instalados. prepare-commit-msg bumpeaba la versión antes de que post-commit se
+# hiciera cargo; con los dos puestos, cada commit bumpea DOS veces.
+# Solo toca symlinks que apuntan acá — un hook propio del usuario no se borra.
+remove_obsolete_hook() {
+    local name="$1"
+    local dst="$REPO_ROOT/.git/hooks/$name"
+
+    [ -L "$dst" ] || return 0
+    case "$(readlink "$dst")" in
+        "$REPO_ROOT/bin/dev/git-hooks/"*) ;;
+        *) return 0 ;;
+    esac
+
+    rm -f "$dst"
+    echo "✓ $name obsoleto removido (bumpeaba la versión por duplicado)"
+}
+
 echo "todo-plugin — setup de desarrollo"
 echo ""
 
 install_hook "pre-commit"
 install_hook "post-commit"
+
+remove_obsolete_hook "prepare-commit-msg"
+remove_obsolete_hook "commit-msg"
 
 echo ""
 echo "Listo."
