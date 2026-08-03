@@ -1,7 +1,7 @@
 # Migración a TypeScript con arquitectura multi-CLI
 
 **Fecha:** 2026-08-03
-**Estado:** Fase 0 implementada (v1.21.9); fases 0.5–4 pendientes
+**Estado:** Fases 0 y 0.5 implementadas (v1.21.13); fases 1–4 pendientes
 
 ## Problema
 
@@ -317,7 +317,7 @@ Y corre en CI, no solo a pedido. Es lo único que distingue "soportamos 6 CLIs" 
 | Fase | Qué | Estado |
 |---|---|---|
 | **0** | `shell.env` + namespaceo del plugin root | ✅ v1.21.9 |
-| **0.5** | `cli-config.yaml` + generador + `--check` en CI | pendiente |
+| **0.5** | `cli-config.yaml` + generador + `--check` en CI | ✅ v1.21.13 |
 | **1** | `core/` + protocol + tests, sin cablear nada | pendiente |
 | **2** | Adapter Claude Code + `hooks.json` + borrar los bash | pendiente |
 | **3** | Adapter OpenCode completo → paridad (B)(C)(D)(E) | pendiente |
@@ -376,7 +376,8 @@ de desarrollo. Se pisan mutuamente en cada sesión. La fase 3 rediseña
 `session-setup`, y ahí hay que resolver esto: componer en vez de sobrescribir, o
 detectar que el destino ya está ocupado por otro hook conocido.
 
-**`marketplace.json` está 21 minors atrasado.** `plugin.json` va por `1.21.11` y
+**~~`marketplace.json` está 21 minors atrasado.~~** Resuelto en la fase 0.5.
+Queda el registro porque explica por qué la versión tiene un solo escritor: `plugin.json` va por `1.21.11` y
 `marketplace.json` declara `1.0.0`, en dos campos (`metadata.version` y
 `plugins[0].version`), porque el `post-commit` del autobump solo escribe el
 primero. El impacto exacto sobre `claude plugin update` no está medido; el drift
