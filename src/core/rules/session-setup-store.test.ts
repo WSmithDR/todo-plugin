@@ -115,3 +115,22 @@ test("sin store no pasa nada", () => {
     rmSync(dir, { recursive: true, force: true })
   }
 })
+
+test("una tarea trabada en DOING también entra al aviso, aunque el TODO esté sano", () => {
+  const doing = "# DOING\n\n- [ ] **Verificación por SMS** — trabada _(creado por: T · 2026-07-09 | iniciado: 2026-07-09T14:00-05:00)_\n"
+  withStore({ "popular-imports": { todo: listaDe(3) } }, ({ cwd, env, base }) => {
+    writeFileSync(join(base, "popular-imports", ".todo", "DOING.md"), doing)
+
+    const d = sessionSetup({ cwd, env, today: HOY })
+    const message = d.action === "advise" ? d.message : ""
+    assert.match(message, /"Verificación por SMS" en curso hace 34 días/)
+  })
+})
+
+test("una tarea recién empezada no molesta", () => {
+  const doing = "# DOING\n\n- [ ] **Reciente** — x _(creado por: T · 2026-08-11 | iniciado: 2026-08-11T09:00-05:00)_\n"
+  withStore({ "popular-imports": { todo: listaDe(3) } }, ({ cwd, env, base }) => {
+    writeFileSync(join(base, "popular-imports", ".todo", "DOING.md"), doing)
+    assert.equal(sessionSetup({ cwd, env, today: HOY }).action, "allow")
+  })
+})

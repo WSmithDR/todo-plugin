@@ -6,7 +6,7 @@ import { PLUGIN_ROOT, storeBase, type Env } from "../paths.ts"
 import { list, mode, projectPath, type Project } from "../store.ts"
 import { markAdvisedOnce } from "../session-state.ts"
 import { rotateArchives } from "../archive.ts"
-import { daysSinceReview, openItemTitles, readTodoFile } from "../todo-files.ts"
+import { daysSinceReview, oldestStarted, openItemTitles, readTodoFile } from "../todo-files.ts"
 import { staleTodo } from "./stale-todo.ts"
 
 export type SessionContext = {
@@ -106,7 +106,20 @@ function storeSetup(ctx: SessionContext, today: Date): Decision {
       todoCount: openItemTitles(todo).length,
       daysSinceReview: daysSinceReview(todo, today),
     })
-    if (decision.action === "allow") continue
+
+    const motivos: string[] = []
+    if (decision.action === "advise") motivos.push(motivoDe(decision))
+
+    // Lo trabado en DOING. En un repo esto lo cubre `session-close`, que dispara
+    // después de commitear; acá no hay commits tuyos que lo disparen, así que sin
+    // esto una tarea puede quedar "en curso" para siempre — y DOING.md es lo que
+    // el pre-commit consulta para sugerir qué cerrar.
+    const trabada = oldestStarted(readTodoFile(dir, "DOING.md"), today)
+    if (trabada !== null && trabada.days >= STUCK_DAYS) {
+      motivos.push(`"${trabada.title}" en curso hace ${trabada.days} días`)
+    }
+
+    if (motivos.length === 0) continue
 
     // Una vez por proyecto y por día: son varios proyectos y este aviso no
     // depende de nada que vos hagas, así que repetirlo en cada sesión es la
@@ -114,19 +127,22 @@ function storeSetup(ctx: SessionContext, today: Date): Decision {
     const fecha = today.toISOString().slice(0, 10)
     if (!markAdvisedOnce(storeStateKey, `stale-${project.id}-${fecha}`, env)) continue
 
-    pendientes.push(`  · ${project.name} — ${motivoDe(decision)}`)
+    pendientes.push(`  · ${project.name} — ${motivos.join(" · ")}`)
   }
 
   if (rotados) commitStore(env)
   if (pendientes.length === 0) return ALLOW
 
   return advise(
-    `TODO-TRIAGE-DUE (proyectos sin repo): hay listas que se están acumulando.
+    `TODO-TRIAGE-DUE (proyectos sin repo): hay listas que se están acumulando o tareas sin cerrar.
 ${pendientes.join("\n")}
 Invocar Skill('todo-triage') y elegir el proyecto en el menú. Si el usuario está
 en otra cosa, no lo interrumpas: ofrecelo cuando termine.`,
   )
 }
+
+/** Dos semanas "en curso": o está trabada, o ya se hizo y nadie la movió. */
+const STUCK_DAYS = 14
 
 /** El estado "ya avisé" del store se guarda bajo una clave fija, no por cwd. */
 const storeStateKey = "todo-store"

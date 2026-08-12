@@ -74,6 +74,26 @@ export const completedCount = (markdown: string): number =>
 export const discardedCount = (markdown: string): number =>
   markdown.split("\n").filter((line) => line.startsWith("- ~~")).length
 
+/**
+ * El item de DOING.md que lleva más tiempo en curso, según su `iniciado:`.
+ *
+ * Una tarea que arrancó hace semanas o está trabada o ya se hizo y nadie la
+ * movió; en los dos casos DOING.md dejó de decir la verdad, que es justo lo que
+ * el pre-commit usa para sugerir qué cerrar.
+ */
+export function oldestStarted(markdown: string, today: Date): { title: string; days: number } | null {
+  let peor: { title: string; days: number } | null = null
+
+  for (const item of openItems(markdown)) {
+    const iniciado = item.text.match(/iniciado:\s*(\d{4}-\d{2}-\d{2})/)?.[1]
+    if (iniciado === undefined) continue
+
+    const days = Math.floor((today.getTime() - new Date(`${iniciado}T00:00:00`).getTime()) / 86_400_000)
+    if (peor === null || days > peor.days) peor = { title: item.title, days }
+  }
+  return peor
+}
+
 /** Días desde el `_Última revisión: YYYY-MM-DD_` del encabezado, o null si no está. */
 export function daysSinceReview(markdown: string, today: Date): number | null {
   const match = markdown.match(/_Última revisión:\s*(\d{4}-\d{2}-\d{2})/)
