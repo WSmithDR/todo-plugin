@@ -191,6 +191,7 @@ const ENTRYPOINTS: { label: string; script: string; args: string[]; expect: numb
   { label: "hook.ts", script: "src/adapters/claude-code/hook.ts", args: ["pre-tool-use"], expect: 0 },
   { label: "todo-guard.ts", script: "src/cli/todo-guard.ts", args: ["check"], expect: 0 },
   { label: "todo-store.ts", script: "src/cli/todo-store.ts", args: ["mode"], expect: 0 },
+  { label: "post-commit.ts", script: "src/cli/post-commit.ts", args: [], expect: 0 },
 ]
 
 export function checkEntrypoints(root: string): Check[] {

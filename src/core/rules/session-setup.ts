@@ -1,4 +1,4 @@
-import { chmodSync, existsSync, lstatSync, mkdirSync, readlinkSync, symlinkSync, unlinkSync } from "node:fs"
+import { chmodSync, existsSync, lstatSync, mkdirSync, readlinkSync, renameSync, symlinkSync, unlinkSync } from "node:fs"
 import { join } from "node:path"
 import { ALLOW, advise, mergeDecisions, type Decision } from "../protocol.ts"
 import { PLUGIN_ROOT } from "../paths.ts"
@@ -25,31 +25,40 @@ export function sessionSetup(ctx: SessionContext): Decision {
   const root = ctx.pluginRoot ?? PLUGIN_ROOT
   if (!existsSync(join(ctx.cwd, ".todo"))) return ALLOW
 
-  return mergeDecisions([installGitHook(ctx.cwd, root), checkConfig(ctx.cwd)])
+  return mergeDecisions([...GIT_HOOKS.map((name) => installGitHook(ctx.cwd, root, name)), checkConfig(ctx.cwd)])
 }
 
-function installGitHook(cwd: string, pluginRoot: string): Decision {
+/** `pre-commit` revisa antes de commitear; `post-commit` es la red para el --no-verify. */
+export const GIT_HOOKS = ["pre-commit", "post-commit"] as const
+
+function installGitHook(cwd: string, pluginRoot: string, name: string): Decision {
   if (!existsSync(join(cwd, ".git"))) return ALLOW
 
-  const dst = join(cwd, ".git", "hooks", "pre-commit")
-  const src = join(pluginRoot, "bin", "hooks", "pre-commit.sh")
+  const dst = join(cwd, ".git", "hooks", name)
+  const src = join(pluginRoot, "bin", "hooks", `${name}.sh`)
   if (!existsSync(src)) return ALLOW
 
   const current = readLinkOrNull(dst)
   if (current === src) return ALLOW
 
-  // Ocupado por otra cosa → se avisa, no se pisa. La versión en bash hacía
-  // `ln -sf` incondicional y se llevaba puesto lo que hubiera: en este mismo
-  // repo el hook de desarrollo (bin/dev/setup.sh, que corre los tests) y este
-  // se sobreescribían mutuamente en cada sesión, sin que nadie se enterara.
-  // La solución de fondo —componer los dos hooks— es de la fase 3.
+  // Ocupado por otra cosa → se ENCADENA, no se pisa ni se abandona. Antes acá se
+  // avisaba "instalalo a mano" y nadie lo hacía: en este mismo repo el hook de
+  // desarrollo ocupaba el slot y la revisión de tareas estuvo inactiva sin que
+  // nadie se enterara. Ahora el hook que había pasa a `<name>.local` y el shim
+  // del plugin lo invoca. Retroactivo: corre en la próxima sesión de cualquier
+  // proyecto que hoy tenga el slot tomado.
+  let chained = ""
   if (existsSync(dst) || current !== null) {
-    return advise(
-      `TODO-SETUP: .git/hooks/pre-commit ya existe y no es el del plugin, así que no se tocó.
-La revisión de tareas previa al commit NO está activa en este proyecto.
-  → Si el hook de ahí no te hace falta, borralo y reabrí la sesión.
-  → Si lo necesitás, encadenalo a mano con: bash "${src}"`,
-    )
+    const local = `${dst}.local`
+    if (existsSync(local) || readLinkOrNull(local) !== null) {
+      return advise(
+        `TODO-SETUP: .git/hooks/${name} está ocupado y ya hay un ${name}.local, así que no se tocó nada.
+La cadena quedaría de tres eslabones y eso se resuelve a mano.
+  → Encadená el del plugin desde el tuyo: bash "${src}"`,
+      )
+    }
+    renameSync(dst, local)
+    chained = ` (el que había se movió a ${name}.local y se sigue ejecutando)`
   }
 
   mkdirSync(join(cwd, ".git", "hooks"), { recursive: true })
@@ -59,7 +68,7 @@ La revisión de tareas previa al commit NO está activa en este proyecto.
   } catch {
     // El plugin puede estar instalado read-only; el symlink ya sirve.
   }
-  return advise("TODO-SETUP: Git pre-commit hook instalado en .git/hooks/pre-commit")
+  return advise(`TODO-SETUP: git hook ${name} instalado en .git/hooks/${name}${chained}`)
 }
 
 function checkConfig(cwd: string): Decision {

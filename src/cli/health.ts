@@ -3,11 +3,12 @@
 //
 //   todo-health            estado del plugin + del .todo/ de este proyecto
 //   todo-health --strict   solo el conformance; exit 1 si algo falla (para CI)
-import { existsSync, readFileSync } from "node:fs"
+import { existsSync, lstatSync, readFileSync, readlinkSync } from "node:fs"
 import { join } from "node:path"
 import { PLUGIN_ROOT } from "../core/paths.ts"
 import { declaredVersion, runConformance, worstStatus, type Check } from "../core/conformance.ts"
 import { openItemTitles } from "../core/rules/pre-commit.ts"
+import { GIT_HOOKS } from "../core/rules/session-setup.ts"
 
 const strict = process.argv.includes("--strict")
 
@@ -61,11 +62,41 @@ function reportProject(): void {
   })()
 
   console.log(`  · .todo/ — TODO:${count("TODO.md")}  DOING:${count("DOING.md")}  DONE:${done}`)
+  reportGitHooks()
 
   try {
     const config = JSON.parse(readFileSync(join(".todo", "config.json"), "utf8")) as Record<string, unknown>
     console.log(`  · config: ${Object.entries(config).map(([k, v]) => `${k}=${String(v)}`).join(" · ")}`)
   } catch {
     console.log("  ⚠ config: sin configurar — corré la skill todo-config")
+  }
+}
+
+/**
+ * Los git hooks se instalan solos en SessionStart, así que nadie los mira. Este
+ * repo tuvo la revisión pre-commit inactiva durante meses porque el slot lo
+ * ocupaba otro hook: si el health no lo reporta, no se entera nadie.
+ */
+function reportGitHooks(): void {
+  if (!existsSync(".git")) return
+
+  for (const name of GIT_HOOKS) {
+    const dst = join(".git", "hooks", name)
+    const target = (() => {
+      try {
+        return lstatSync(dst).isSymbolicLink() ? readlinkSync(dst) : ""
+      } catch {
+        return null
+      }
+    })()
+
+    if (target === null) {
+      console.log(`  ⚠ hook ${name}: no instalado — reabrí la sesión para que se instale`)
+    } else if (target.startsWith(PLUGIN_ROOT)) {
+      const chained = existsSync(`${dst}.local`) ? ` (encadena ${name}.local)` : ""
+      console.log(`  ✓ hook ${name}: activo${chained}`)
+    } else {
+      console.log(`  ⚠ hook ${name}: el slot lo ocupa otro hook (${target || "archivo propio"}) — el del plugin NO corre`)
+    }
   }
 }

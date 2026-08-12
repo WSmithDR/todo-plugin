@@ -1,15 +1,17 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { lstatSync, mkdirSync, mkdtempSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
+import { lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { sessionSetup } from "./session-setup.ts"
+import { GIT_HOOKS, sessionSetup } from "./session-setup.ts"
 
-/** Un plugin de mentira con el pre-commit.sh en su lugar. */
+/** Un plugin de mentira con sus shims de git hooks en su lugar. */
 function fakePluginRoot(dir: string): string {
   const root = join(dir, "plugin")
   mkdirSync(join(root, "bin", "hooks"), { recursive: true })
-  writeFileSync(join(root, "bin", "hooks", "pre-commit.sh"), "#!/bin/bash\nexit 0\n")
+  for (const name of GIT_HOOKS) {
+    writeFileSync(join(root, "bin", "hooks", `${name}.sh`), "#!/bin/bash\nexit 0\n")
+  }
   return root
 }
 
@@ -77,7 +79,7 @@ test("el hook ya instalado no se reinstala ni se reporta", () => {
   )
 })
 
-test("un pre-commit ajeno NO se pisa: se avisa", () => {
+test("un pre-commit ajeno se ENCADENA: pasa a .local y el del plugin toma el slot", () => {
   withProject(
     ({ cwd, pluginRoot, hookPath }) => {
       const ajeno = join(cwd, "otro-hook.sh")
@@ -85,19 +87,52 @@ test("un pre-commit ajeno NO se pisa: se avisa", () => {
       symlinkSync(ajeno, hookPath)
 
       const d = sessionSetup({ cwd, pluginRoot })
-      assert.equal(readlinkSync(hookPath), ajeno, "el hook ajeno tiene que sobrevivir")
-      assert.match(d.action === "advise" ? d.message : "", /ya existe y no es el del plugin/)
+      assert.equal(readlinkSync(hookPath), join(pluginRoot, "bin", "hooks", "pre-commit.sh"))
+      assert.equal(readlinkSync(`${hookPath}.local`), ajeno, "el hook ajeno sigue existiendo, encadenado")
+      assert.match(d.action === "advise" ? d.message : "", /se movió a pre-commit\.local/)
     },
     { config: true },
   )
 })
 
-test("un pre-commit ajeno que es archivo regular tampoco se pisa", () => {
+test("un pre-commit ajeno que es archivo regular también se encadena", () => {
   withProject(
     ({ cwd, pluginRoot, hookPath }) => {
-      writeFileSync(hookPath, "#!/bin/bash\nexit 0\n")
+      writeFileSync(hookPath, "#!/bin/bash\necho ajeno\n")
       sessionSetup({ cwd, pluginRoot })
-      assert.equal(lstatSync(hookPath).isSymbolicLink(), false)
+      assert.equal(lstatSync(hookPath).isSymbolicLink(), true)
+      assert.match(readFileSync(`${hookPath}.local`, "utf8"), /echo ajeno/)
+    },
+    { config: true },
+  )
+})
+
+test("si ya hay un .local no se toca nada: la cadena de tres se resuelve a mano", () => {
+  withProject(
+    ({ cwd, pluginRoot, hookPath }) => {
+      writeFileSync(hookPath, "#!/bin/bash\necho ajeno\n")
+      writeFileSync(`${hookPath}.local`, "#!/bin/bash\necho viejo\n")
+
+      const d = sessionSetup({ cwd, pluginRoot })
+      assert.equal(lstatSync(hookPath).isSymbolicLink(), false, "el ajeno no se movió")
+      assert.match(readFileSync(`${hookPath}.local`, "utf8"), /echo viejo/, "el .local previo se conserva")
+      assert.match(d.action === "advise" ? d.message : "", /ya hay un pre-commit\.local/)
+    },
+    { config: true },
+  )
+})
+
+test("se instalan los dos hooks, no solo el pre-commit", () => {
+  withProject(
+    ({ cwd, pluginRoot }) => {
+      sessionSetup({ cwd, pluginRoot })
+      for (const name of GIT_HOOKS) {
+        assert.equal(
+          readlinkSync(join(cwd, ".git", "hooks", name)),
+          join(pluginRoot, "bin", "hooks", `${name}.sh`),
+          `${name} tiene que quedar instalado`,
+        )
+      }
     },
     { config: true },
   )

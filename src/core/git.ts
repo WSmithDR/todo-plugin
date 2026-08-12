@@ -18,3 +18,13 @@ export const currentBranch = (cwd: string): string => git(cwd, "rev-parse", "--a
 
 /** El SHA de HEAD. Comparado entre dos momentos, dice si hubo commits. */
 export const currentHead = (cwd: string): string => git(cwd, "rev-parse", "HEAD")
+
+/**
+ * Path de la marca que el pre-commit deja al dejar pasar un commit, y que el
+ * post-commit consume. Su ausencia es la única evidencia de un `--no-verify`.
+ * Vive dentro del `.git/` para no ensuciar el working tree ni el gitignore.
+ */
+export const preCommitMarker = (cwd: string): string => {
+  const dir = git(cwd, "rev-parse", "--absolute-git-dir")
+  return dir === "" ? "" : `${dir}/todo-precommit-ok`
+}

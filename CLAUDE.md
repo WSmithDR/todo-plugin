@@ -207,7 +207,33 @@ perdedor sin ningún error visible.
 Nunca resuelvas el root con `git rev-parse --show-toplevel` — devuelve el repo del
 usuario, no el del plugin.
 
-### Git hook (`bin/hooks/pre-commit.sh`)
+### Git hooks (`bin/hooks/`)
+
+Dos, y se instalan solos en `SessionStart`:
+
+| Hook | Qué hace |
+|---|---|
+| `pre-commit` | La revisión de tareas de arriba. Bloquea (git no tiene `advise`: todo exit ≠ 0 aborta) |
+| `post-commit` | Red del `--no-verify` **de entrada**: avisa si el commit nunca pasó por la revisión, con la lista retroactiva de commits sin registro desde el último toque a DONE.md |
+
+**Encadenado, no excluyente.** Si el slot ya está ocupado (husky, lefthook, el hook
+de desarrollo de este repo), el que había se mueve a `<hook>.local` y el shim del
+plugin lo invoca: `pre-commit` corre el `.local` primero (si sus tests fallan, el
+commit muere ahí); `post-commit` corre el nuestro primero, porque un `.local` que
+amenda —el autobump de versión— deja el commit como `commit (amend)` en el reflog y
+la regla ignora los amends. Antes acá se avisaba "encadenalo a mano" y nadie lo
+hacía: en este mismo repo la revisión estuvo inactiva meses. La migración es
+retroactiva — corre en la próxima sesión de cualquier proyecto con el slot tomado.
+
+**La marca `<git-dir>/todo-precommit-ok`** la escribe el pre-commit en cada corrida
+y la consume el post-commit. Significa "la revisión se vio", no "salió allow":
+como el `advise` aborta el commit, el `--no-verify` que viene después es el camino
+sancionado. Lo que su ausencia delata es el commit forzado de entrada.
+
+`todo-health` reporta el estado de los dos hooks — sin eso nadie se entera de que
+el slot lo ocupa otro.
+
+#### Detalle de la revisión (`bin/hooks/pre-commit.sh`)
 
 Editor-agnóstico — corre en cualquier CLI o editor. Se instala automáticamente via `SessionStart` en la primera sesión del proyecto. Bloquea `git commit` si hay tareas en DOING.md que podrían estar resueltas por los cambios en staging.
 

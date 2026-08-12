@@ -12,6 +12,13 @@ install_hook() {
     local src="$REPO_ROOT/bin/dev/git-hooks/$name"
     local dst="$REPO_ROOT/.git/hooks/$name"
 
+    # Si el slot lo ocupa el hook del plugin, el de desarrollo va al eslabón
+    # encadenado: pisarlo apagaba la revisión de tareas en este mismo repo.
+    local link; link="$(readlink "$dst" 2>/dev/null || true)"
+    case "$link" in
+        "$REPO_ROOT/bin/hooks/"*) dst="$dst.local" ;;
+    esac
+
     chmod +x "$src"
     if [ -L "$dst" ] && [ "$(readlink "$dst")" = "$src" ]; then
         echo "✓ $name hook ya instalado"

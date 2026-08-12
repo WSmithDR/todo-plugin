@@ -129,6 +129,48 @@ result=$(run_in_tmpdir "
 ")
 [ "$result" = "OK" ] && _pass "'- [x]' staged → bloqueo duro" || _fail "checkbox a mano → $result"
 
+# El hook encadenado corre primero y su falla aborta el commit
+result=$(run_in_tmpdir "
+    git init -q && git config user.email 't@t.com' && git config user.name 'T'
+    mkdir -p .todo .git/hooks
+    printf '# TODO\n' > .todo/TODO.md
+    printf '#!/bin/bash\necho ENCADENADO; exit 1\n' > .git/hooks/pre-commit.local
+    chmod +x .git/hooks/pre-commit.local
+    ln -sf '$REPO_ROOT/bin/hooks/pre-commit.sh' .git/hooks/pre-commit
+    echo x > f.txt && git add f.txt
+    out=\$(git commit -m 'fix: algo' 2>&1); rc=\$?
+    case \"\$out\" in
+        *ENCADENADO*) [ \$rc -ne 0 ] && echo OK || echo 'no abortó' ;;
+        *) echo \"el .local no corrió: \$out\" ;;
+    esac
+")
+[ "$result" = "OK" ] && _pass "pre-commit encadena el .local y aborta si falla" || _fail "cadena pre-commit → $result"
+
+# --no-verify → el post-commit lo delata (con la lista retroactiva)
+result=$(run_in_tmpdir "
+    git init -q && git config user.email 't@t.com' && git config user.name 'T'
+    mkdir -p .todo .git/hooks
+    printf '# TODO\n' > .todo/TODO.md
+    git add -A && git commit -q --no-verify -m init 2>/dev/null
+    ln -sf '$REPO_ROOT/bin/hooks/post-commit.sh' .git/hooks/post-commit
+    ln -sf '$REPO_ROOT/bin/hooks/pre-commit.sh' .git/hooks/pre-commit
+    echo x > f.txt && git add f.txt
+    forzado=\$(git commit --no-verify -m 'fix: forzado de entrada' 2>&1)
+    # El camino sancionado: la revisión corre, aborta, y recién ahí se fuerza.
+    echo y > g.txt && git add g.txt
+    git commit -m 'chore: revisado' > /dev/null 2>&1
+    revisado=\$(git commit --no-verify -m 'chore: revisado' 2>&1)
+    case \"\$forzado\" in
+        *TODO-POST-COMMIT*)
+            case \"\$revisado\" in
+                *TODO-POST-COMMIT*) echo 'avisó aunque la revisión se había visto' ;;
+                *) echo OK ;;
+            esac ;;
+        *) echo \"no delató el bypass: \$forzado\" ;;
+    esac
+")
+[ "$result" = "OK" ] && _pass "post-commit delata el --no-verify de entrada y calla si la revisión se vio" || _fail "red del --no-verify → $result"
+
 echo ""
 echo "=== CLI del store (vía shim) ==="
 

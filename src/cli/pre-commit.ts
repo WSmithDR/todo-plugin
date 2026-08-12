@@ -6,8 +6,9 @@
 // commit. Los dos verbos se mapean a exit 1; la diferencia es qué dice el
 // mensaje sobre si --no-verify corresponde.
 import { execFileSync } from "node:child_process"
-import { existsSync, readFileSync } from "node:fs"
+import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
+import { preCommitMarker } from "../core/git.ts"
 import { openItemTitles, preCommitReview } from "../core/rules/pre-commit.ts"
 
 const MAX_STAGED_SHOWN = 20
@@ -43,6 +44,19 @@ const decision = preCommitReview({
   todoCount: openItemTitles(read(".todo/TODO.md")).length,
   recentCommits: lines(git("log", "--oneline", `-${RECENT_COMMITS}`)),
 })
+
+// La marca la consume el post-commit y significa "la revisión se vio", no "salió
+// allow": como `advise` aborta el commit, el `--no-verify` que viene después es
+// el camino sancionado —el modelo ya leyó el mensaje y decidió—. Lo que la
+// ausencia de marca delata es el commit forzado de entrada, que nunca se revisó.
+const marker = preCommitMarker(cwd)
+if (marker !== "") {
+  try {
+    writeFileSync(marker, decision.action)
+  } catch {
+    // Sin marca el post-commit avisa de más, no de menos. No vale abortar por esto.
+  }
+}
 
 if (decision.action === "allow") process.exit(0)
 process.stderr.write(decision.message + "\n")
