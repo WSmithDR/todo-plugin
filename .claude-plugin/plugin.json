@@ -1,6 +1,6 @@
 {
   "name": "todo-plugin",
-  "version": "1.29.0",
+  "version": "1.29.1",
   "description": "Task lifecycle management for Claude Code projects. Maintains .todo/TODO.md, DOING.md, DONE.md using the Eisenhower matrix. Skills for adding, triaging, auditing, and tracking work. Hooks enforce pre-commit task review and error tracking.",
   "author": {
     "name": "WSmithDR",

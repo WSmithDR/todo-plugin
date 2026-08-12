@@ -1,4 +1,4 @@
-import { chmodSync, existsSync, lstatSync, mkdirSync, readlinkSync, renameSync, symlinkSync, unlinkSync } from "node:fs"
+import { chmodSync, existsSync, lstatSync, mkdirSync, readlinkSync, renameSync, symlinkSync } from "node:fs"
 import { join } from "node:path"
 import { ALLOW, advise, mergeDecisions, type Decision } from "../protocol.ts"
 import { PLUGIN_ROOT } from "../paths.ts"
@@ -110,16 +110,4 @@ function readLinkOrNull(path: string): string | null {
   } catch {
     return null
   }
-}
-
-/** Expuesto para que un `todo-config` pueda reinstalar pisando a propósito. */
-export function forceInstallGitHook(cwd: string, pluginRoot: string = PLUGIN_ROOT): void {
-  const dst = join(cwd, ".git", "hooks", "pre-commit")
-  mkdirSync(join(cwd, ".git", "hooks"), { recursive: true })
-  try {
-    unlinkSync(dst)
-  } catch {
-    // No existía.
-  }
-  symlinkSync(join(pluginRoot, "bin", "hooks", "pre-commit.sh"), dst)
 }
