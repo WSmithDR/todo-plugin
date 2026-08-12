@@ -44,6 +44,12 @@ export const lastSeenHead = (cwd: string, env?: Env): string => read(keyFor("hea
 export const rememberHead = (cwd: string, head: string, env?: Env): void =>
   write(keyFor("head", cwd), head, env)
 
+/** El último sello del reflog que vimos. Gate barato de `lastSeenHead`. */
+export const lastSeenStamp = (cwd: string, env?: Env): string => read(keyFor("refstamp", cwd), env).trim()
+
+export const rememberStamp = (cwd: string, stamp: string, env?: Env): void =>
+  write(keyFor("refstamp", cwd), stamp, env)
+
 /**
  * ¿Ya avisamos esto acá? Marca y devuelve si era nuevo.
  *

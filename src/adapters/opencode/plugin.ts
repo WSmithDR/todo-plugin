@@ -8,9 +8,9 @@ import { sessionSetup } from "../../core/rules/session-setup.ts"
 import { editingItem } from "../../core/rules/editing-item.ts"
 import { sessionClose } from "../../core/rules/session-close.ts"
 import { openItems, openItemTitles, readTodoFile } from "../../core/todo-files.ts"
-import { lastSeenHead, markAdvisedOnce, rememberHead } from "../../core/session-state.ts"
+import { lastSeenHead, lastSeenStamp, markAdvisedOnce, rememberHead, rememberStamp } from "../../core/session-state.ts"
 import { isWindowOpen } from "../../core/window.ts"
-import { currentBranch, currentHead } from "../../core/git.ts"
+import { currentBranch, currentHead, refLogStamp } from "../../core/git.ts"
 import { guardEnabled } from "../../core/env.ts"
 import { injectConfig, type OpenCodeConfig } from "./config.ts"
 import { applyAfter, applyBefore, type AfterOutput } from "./emit.ts"
@@ -37,8 +37,8 @@ import { toToolEvent } from "./normalize.ts"
  *
  * `system.transform` sí corre en cada request y sí tiene canal. La condición de
  * la regla (HEAD se movió) hace el resto: avisa una vez por commit, no una vez
- * por request. Cuesta un `git rev-parse` por request, que al lado de una llamada
- * al modelo no se nota.
+ * por request. Y el `git rev-parse` está gateado por el mtime del reflog: en el
+ * caso normal —nada se movió— el costo por request es un stat, no un proceso.
  *
  * El equivalente de SessionStart no es un hook: los efectos corren una vez acá,
  * al construir el plugin, y el aviso resultante se cuelga del system prompt. Un
@@ -54,6 +54,13 @@ import { toToolEvent } from "./normalize.ts"
  */
 function checkSessionClose(directory: string, hasTodoDir: boolean): string | null {
   if (!hasTodoDir) return null
+
+  // Gate barato: si el reflog no se movió, no hay commit nuevo y no hace falta
+  // spawnear git. Sin reflog el sello es "" y se cae al camino caro, que es el
+  // correcto siempre; lo que se pierde ahí es el ahorro, no la corrección.
+  const stamp = refLogStamp(directory)
+  if (stamp !== "" && stamp === lastSeenStamp(directory)) return null
+  if (stamp !== "") rememberStamp(directory, stamp)
 
   const head = currentHead(directory)
   if (!head) return null

@@ -204,4 +204,6 @@ Report to the user: which items were moved where, who is listed as responsible, 
 
 **Item in DOING.md** — treat the same as one in TODO.md. The source file doesn't change the process.
 
+**Buscar algo cerrado hace tiempo** — `DONE.md`/`DISCARDED.md` solo tienen el año en curso; lo anterior está en `.todo/DONE-<año>.md` y `.todo/DISCARDED-<año>.md`, que rota el plugin al iniciar sesión. Los items nuevos SIEMPRE se escriben en `DONE.md`/`DISCARDED.md` — nunca directo en un archivo de año.
+
 **Multiple responsables** — if git log returns several names, list all of them. Don't filter to just the last committer.

@@ -114,8 +114,16 @@ proyecto. Al ejecutar un skill fuera de un repo, se elige el proyecto desde un m
 |---|---|
 | `.todo/TODO.md` | Open items, sorted by Eisenhower quadrant |
 | `.todo/DOING.md` | Items currently in progress |
-| `.todo/DONE.md` | Completed items |
-| `.todo/DISCARDED.md` | Discarded items |
+| `.todo/DONE.md` | Completed items — **año en curso** |
+| `.todo/DISCARDED.md` | Discarded items — **año en curso** |
+| `.todo/DONE-<año>.md` · `.todo/DISCARDED-<año>.md` | Lo cerrado en años anteriores |
+
+**Rotación por año.** En `SessionStart`, `rotateArchives` (`src/core/archive.ts`) manda
+lo cerrado en años anteriores a `<NOMBRE>-<año>.md`, al lado. El año de un item es el
+de su **última** fecha —la del cierre—, no la de creación: rotar por creación mandaría
+al archivo viejo algo que se cerró ayer. Un item sin fecha se queda donde está.
+Idempotente. Los consumidores de DONE.md (bitacora, informe mensual) siguen leyendo el
+año en curso sin cambiar nada; para el histórico están los archivos hermanos.
 
 ## Skills
 
@@ -145,7 +153,7 @@ src/adapters/claude-code/hook.ts <modo>`.
 
 | Hook | Trigger | Regla | Verbo |
 |---|---|---|---|
-| `SessionStart` | Inicio de sesión | `session-setup`: instala el git pre-commit y detecta `.todo/` sin `config.json` | `advise` |
+| `SessionStart` | Inicio de sesión | `session-setup`: instala los git hooks, rota DONE/DISCARDED por año y detecta `.todo/` sin `config.json` | `advise` |
 | `PreToolUse(Edit/Write/MultiEdit/Bash)` | Escritura sobre `.todo/` | `guard`: solo pasa dentro de la ventana que abre un skill. Bypass: `TODO_GUARD=off` | `deny` |
 | `PostToolUse(Bash)` | Comando fallido | `error-triage`: evalúa si merece una tarea | `advise` |
 | `PostToolUse(Bash)` | `git switch` / `checkout -b` a rama de feature | `branch-doing`: recuerda mover la tarea a DOING.md | `advise` |

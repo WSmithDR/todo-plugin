@@ -2,11 +2,14 @@ import { chmodSync, existsSync, lstatSync, mkdirSync, readlinkSync, renameSync, 
 import { join } from "node:path"
 import { ALLOW, advise, mergeDecisions, type Decision } from "../protocol.ts"
 import { PLUGIN_ROOT } from "../paths.ts"
+import { rotateArchives } from "../archive.ts"
 
 export type SessionContext = {
   cwd: string
   /** Inyectable para los tests; en producción es el root real del plugin. */
   pluginRoot?: string
+  /** Inyectable para los tests; en producción es el año de hoy. */
+  year?: number
 }
 
 /**
@@ -25,7 +28,27 @@ export function sessionSetup(ctx: SessionContext): Decision {
   const root = ctx.pluginRoot ?? PLUGIN_ROOT
   if (!existsSync(join(ctx.cwd, ".todo"))) return ALLOW
 
-  return mergeDecisions([...GIT_HOOKS.map((name) => installGitHook(ctx.cwd, root, name)), checkConfig(ctx.cwd)])
+  return mergeDecisions([
+    ...GIT_HOOKS.map((name) => installGitHook(ctx.cwd, root, name)),
+    archiveOldYears(ctx.cwd, ctx.year ?? new Date().getFullYear()),
+    checkConfig(ctx.cwd),
+  ])
+}
+
+/**
+ * Poda por año de DONE.md/DISCARDED.md. Va en SessionStart porque es el único
+ * momento en que ya hay `.todo/` y todavía no hay nada en vuelo que se pise.
+ */
+function archiveOldYears(cwd: string, year: number): Decision {
+  const rotations = rotateArchives(cwd, year)
+  if (rotations.length === 0) return ALLOW
+
+  const detail = rotations.map((r) => `${r.moved} de ${r.file.replace(".md", "")} → ${r.file.replace(".md", `-${r.year}.md`)}`)
+  return advise(
+    `TODO-ARCHIVE: se archivaron items cerrados en años anteriores.
+  ${detail.join("\n  ")}
+Nada se perdió: los archivos quedan al lado, en .todo/. Commiteálos cuando toque.`,
+  )
 }
 
 /** `pre-commit` revisa antes de commitear; `post-commit` es la red para el --no-verify. */
