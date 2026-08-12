@@ -38,7 +38,6 @@ Un item completado NO se marca: se MUEVE a DONE.md con narrativa y atribución.
   }
 
   if (input.staged.length === 0) return ALLOW
-  if (input.doing.length === 0 && input.todoCount === 0) return ALLOW
 
   const sections = [`TODO-PRE-COMMIT: Revisión previa al commit.\n`, `Archivos en staging: ${input.staged.join(" ")}\n`]
 
@@ -49,6 +48,9 @@ Un item completado NO se marca: se MUEVE a DONE.md con narrativa y atribución.
   if (input.todoCount > 0) {
     sections.push(`Tareas ABIERTAS: ${input.todoCount} items en TODO.md\n`)
   }
+  if (input.doing.length === 0 && input.todoCount === 0) {
+    sections.push(`Sin tareas abiertas: si este commit resolvió algo, igual va registrado (paso 3).\n`)
+  }
 
   const commits = input.recentCommits.length > 0
     ? input.recentCommits.map((line) => `  ${line}`).join("\n")
@@ -57,10 +59,13 @@ Un item completado NO se marca: se MUEVE a DONE.md con narrativa y atribución.
   sections.push(`Commits recientes:\n${commits}
 
 Instrucciones:
-  1. Compara los archivos en staging con las tareas en progreso.
-  2. Si alguna tarea fue resuelta por este commit → invocar todo-done primero.
-  3. Si ninguna fue resuelta → forzar el commit con: git commit --no-verify
-  4. No bloquear el commit si no hay coincidencias claras.`)
+  1. Compará los archivos en staging con las tareas en progreso.
+  2. Si alguna tarea abierta fue resuelta por este commit → invocá todo-done primero.
+  3. Si el commit resolvió algo que NO figura en TODO.md/DOING.md → NO uses --no-verify:
+     creá la tarea ahora y cerrala en el mismo paso con todo-done (registrala directo
+     en DONE.md, con narrativa y responsable). Un arreglo sin tarea es trabajo que
+     desaparece del registro — DONE.md es lo que consumen las otras herramientas.
+  4. --no-verify SOLO si el commit no resuelve nada: WIP, formato, docs, renombres.`)
 
   return advise(sections.join("\n"))
 }

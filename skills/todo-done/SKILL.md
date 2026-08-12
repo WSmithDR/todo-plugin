@@ -11,7 +11,11 @@ Moves completed items from `.todo/TODO.md` or `.todo/DOING.md` into `.todo/DONE.
 
 Un item completado **NO se marca `- [x]` en TODO.md/DOING.md: se MUEVE** a `DONE.md` (o `DISCARDED.md`) vía esta skill, con narrativa `✓ _resuelto: ..._` y atribución de responsables. Un `[x]` que queda en TODO.md es un bug de proceso: DONE.md es la fuente de verdad de completados (la consumen otras herramientas, p.ej. bitacora para el informe mensual) y un checkbox huérfano lo deja invisible. Enforcement en dos capas: `todo-guard` bloquea el write de `- [x]` a TODO/DOING aun con ventana abierta, y el pre-commit bloquea cualquier `- [x]` staged que se haya colado por otra vía.
 
-Si el hook pre-commit avisa "si alguna tarea fue resuelta → invocar todo-done primero", la respuesta correcta es **correr esta skill** — no `git commit --no-verify`. El `--no-verify` solo corresponde cuando el commit genuinamente no resuelve ninguna tarea abierta.
+Si el hook pre-commit avisa "si alguna tarea fue resuelta → invocar todo-done primero", la respuesta correcta es **correr esta skill** — no `git commit --no-verify`.
+
+## Regla dura: el trabajo sin tarea también se registra
+
+Si el commit resuelve algo que **nunca estuvo** en TODO.md/DOING.md, `--no-verify` **no** corresponde: creá la tarea retroactivamente y escribila directo en `DONE.md` (ver *Edge cases → Trabajo no contemplado*). El `--no-verify` queda solo para commits que genuinamente no resuelven nada: WIP, formato, docs, renombres.
 
 ## Process
 
@@ -187,6 +191,12 @@ Report to the user: which items were moved where, who is listed as responsible, 
 ## Edge cases
 
 **"Lo hice en la UI / en producción / sin git"** — accept the user's word. Use `git config user.name` as responsible. Note: `✓ _resuelto: según descripción del usuario — responsable: Name · YYYY-MM-DD_`
+
+**Trabajo no contemplado** — el commit resolvió algo que nunca fue tarea. No lo saltees con `--no-verify`: redactá la tarea como si se hubiera creado antes del trabajo (título + descripción de qué estaba mal) y escribila directo en `DONE.md`, sin pasar por TODO.md ni DOING.md. Usá la fecha del primer commit del trabajo como `creado por: … · YYYY-MM-DD` (o la de hoy si es todo del mismo día) y `date -Iminutes` para `resuelto:`. Sin `iniciado:` — bitacora usa la fecha de creación como fallback.
+
+```markdown
+- [x] **Guard bloqueaba texto que solo mencionaba .todo/** — el regex matcheaba la ruta en prosa, no solo en escrituras _(creado por: SmithDR · 2026-08-12)_ ✓ _resuelto: detección por tokens en bashWritesToTodo — responsable: SmithDR · 2026-08-12T12:30-05:00_
+```
 
 **Partial completion** — if a TODO had 3 sub-cases and only 2 were fixed, leave it open and edit the description to reflect what remains.
 

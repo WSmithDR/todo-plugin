@@ -211,6 +211,12 @@ usuario, no el del plugin.
 
 Editor-agnóstico — corre en cualquier CLI o editor. Se instala automáticamente via `SessionStart` en la primera sesión del proyecto. Bloquea `git commit` si hay tareas en DOING.md que podrían estar resueltas por los cambios en staging.
 
+Corre **aunque no haya tareas abiertas**: si el commit resolvió algo que nunca fue
+tarea, la salida no es `--no-verify` sino crear la tarea y escribirla directo en
+DONE.md (edge case *Trabajo no contemplado* en `todo-done`). El `--no-verify` queda
+para commits que no resuelven nada — WIP, formato, docs. Un arreglo que se saltea el
+registro desaparece de DONE.md, que es lo que consumen las otras herramientas.
+
 ### Guard de edición directa (`bin/todo-guard.sh`)
 
 Para mantener la consistencia del formato, toda mutación de `.todo/` debe pasar

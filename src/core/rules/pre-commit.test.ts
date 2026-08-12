@@ -19,8 +19,12 @@ test("sin nada en staging → allow", () => {
   assert.equal(preCommitReview({ ...base, staged: [] }).action, "allow")
 })
 
-test("sin tareas abiertas → allow", () => {
-  assert.equal(preCommitReview(base).action, "allow")
+test("sin tareas abiertas → advise igual: el commit puede resolver algo no contemplado", () => {
+  const d = preCommitReview(base)
+  assert.equal(d.action, "advise")
+  const message = d.action === "advise" ? d.message : ""
+  assert.match(message, /Sin tareas abiertas/)
+  assert.match(message, /NO figura en TODO\.md\/DOING\.md → NO uses --no-verify/)
 })
 
 test("tareas en DOING + staging → advise con los títulos", () => {
