@@ -22,6 +22,8 @@ Antes de cualquier operación sobre archivos `.todo/`, ejecutá una sola vez `"$
 
 Antes de cualquier operación de archivos, resolvé el proyecto UNA SOLA VEZ: ejecutá `"${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" mode`. Si es `repo`, usá el `.todo/` del repo. Si es `nonrepo`, listá proyectos (`"${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" list`), pedí al usuario cuál (o "➕ Nuevo" → `"${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" create "<nombre>"`), y hacé `cd "$("${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" path "<id>")"`. A partir de ahí ya estás posicionado en el store: NO vuelvas a mostrar el menú de proyectos cuando delegues a los skills del plugin — operan sobre el `.todo/` del directorio actual.
 
+Toda pregunta al usuario va por el tool de preguntas del CLI —`AskUserQuestion` en Claude Code, `question` en OpenCode—, con las opciones enumeradas. Nunca en prosa: una pregunta enterrada en un párrafo se contesta con "dale", y ahí una decisión del usuario se volvió una decisión tuya.
+
 ## Task Format
 
 Every task entry includes creator and responsible metadata:

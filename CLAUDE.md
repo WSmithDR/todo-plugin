@@ -136,6 +136,15 @@ año en curso sin cambiar nada; para el histórico están los archivos hermanos.
 
 ## Skills
 
+**Toda pregunta al usuario va por el tool de preguntas del CLI**, nunca en prosa:
+`AskUserQuestion` en Claude Code, `question` en OpenCode. Las SKILL.md lo nombran
+`AskUserQuestion` porque son un archivo solo para los dos CLIs; el adapter de
+OpenCode aclara en el system prompt que se lee como "el equivalente de este CLI".
+Si un CLI futuro no tiene ninguno, la alternativa es opciones enumeradas y esperar
+la respuesta — nunca seguir de largo. Una pregunta enterrada en un párrafo se
+contesta con "dale" y ahí nadie eligió nada: es la forma más barata de convertir
+una decisión del usuario en una decisión del modelo.
+
 Cada skill tiene que tener **quién la despierta**. Una skill que solo se invoca si
 el usuario se acuerda del nombre, no se invoca: la columna de la derecha es tan
 parte del diseño como la de la izquierda.
