@@ -110,6 +110,15 @@ tienen un `.todo/` local. En su lugar, el plugin mantiene un registro central:
 proyecto. Al ejecutar un skill fuera de un repo, se elige el proyecto desde un menú
 (o se crea uno nuevo). Identidad = nombre + id; no se crean archivos en el cwd.
 
+**SessionStart también los cubre** (`storeSetup` en `session-setup.ts`), y solo
+**fuera de un repo**: recorre los proyectos del store, rota sus archivos por año en
+silencio —commiteando, porque el store se versiona solo— y junta en UN aviso los que
+estén cargados o vencidos, una vez por proyecto y por día. Sin esto no los alcanzaba
+nada: el gate era `if (!existsSync(cwd/.todo)) return ALLOW`, y son justo los
+proyectos que menos se abren, o sea donde más se acumula. Dentro de un repo sin
+`.todo/` no dice nada — un proyecto de código ajeno no es lugar para recordar las
+tareas de un sitio. Git hooks tampoco: ahí el trabajo pasa afuera, no en commits.
+
 | File | Purpose |
 |---|---|
 | `.todo/TODO.md` | Open items, sorted by Eisenhower quadrant |

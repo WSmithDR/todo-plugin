@@ -16,6 +16,13 @@ const CACHE = mkdtempSync(join(tmpdir(), "todo-decide-cache-"))
 process.env.XDG_CACHE_HOME = CACHE
 process.on("exit", () => rmSync(CACHE, { recursive: true, force: true }))
 
+// Y el store REAL, por lo mismo: fuera de un repo, session-start mira los
+// proyectos sin repo del usuario. Sin esto el test depende de cuántas tareas
+// tenga hoy en sus sitios, y encima les escribiría estado y commits.
+const DATA = mkdtempSync(join(tmpdir(), "todo-decide-data-"))
+process.env.XDG_DATA_HOME = DATA
+process.on("exit", () => rmSync(DATA, { recursive: true, force: true }))
+
 function withProject<T>(fn: (cwd: string) => T, opts: { todo?: boolean; config?: boolean } = {}): T {
   const dir = mkdtempSync(join(tmpdir(), "todo-decide-"))
   try {

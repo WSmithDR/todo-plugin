@@ -1,7 +1,10 @@
+import { execFileSync } from "node:child_process"
 import { chmodSync, existsSync, lstatSync, mkdirSync, readlinkSync, renameSync, symlinkSync } from "node:fs"
 import { join } from "node:path"
 import { ALLOW, advise, mergeDecisions, type Decision } from "../protocol.ts"
-import { PLUGIN_ROOT } from "../paths.ts"
+import { PLUGIN_ROOT, storeBase, type Env } from "../paths.ts"
+import { list, mode, projectPath, type Project } from "../store.ts"
+import { markAdvisedOnce } from "../session-state.ts"
 import { rotateArchives } from "../archive.ts"
 import { daysSinceReview, openItemTitles, readTodoFile } from "../todo-files.ts"
 import { staleTodo } from "./stale-todo.ts"
@@ -14,6 +17,12 @@ export type SessionContext = {
   year?: number
   /** Inyectable para los tests; en producción, hoy. */
   today?: Date
+  /**
+   * Inyectable para los tests. NO es opcional por elegancia: sin esto, un test
+   * que corra la rama del store lee el store REAL del usuario y le escribe
+   * estado y commits. Ya pasó una vez.
+   */
+  env?: Env
 }
 
 /**
@@ -30,9 +39,15 @@ export type SessionContext = {
  */
 export function sessionSetup(ctx: SessionContext): Decision {
   const root = ctx.pluginRoot ?? PLUGIN_ROOT
-  if (!existsSync(join(ctx.cwd, ".todo"))) return ALLOW
-
   const today = ctx.today ?? new Date()
+
+  // Sin `.todo/` propio no hay proyecto local, pero sí puede haber proyectos en
+  // el store central (los que no tienen repo: sitios operados por MCP). Antes
+  // esta línea era un `return ALLOW` seco y por eso NADA de SessionStart los
+  // alcanzaba: ni la poda por año ni el recordatorio de triage. Son justamente
+  // los proyectos que menos se abren, o sea donde más se acumula.
+  if (!existsSync(join(ctx.cwd, ".todo"))) return storeSetup(ctx, today)
+
   const todo = readTodoFile(ctx.cwd, "TODO.md")
 
   return mergeDecisions([
@@ -45,6 +60,96 @@ export function sessionSetup(ctx: SessionContext): Decision {
     }),
     checkConfig(ctx.cwd),
   ])
+}
+
+/**
+ * SessionStart para los proyectos SIN repo, que viven en el store central.
+ *
+ * Se hace acá y no en cada skill porque es el único momento del ciclo que corre
+ * sin que el usuario haya pedido nada: si el recordatorio dependiera de abrir el
+ * proyecto, no serviría — el problema ES que no se abre hace meses.
+ *
+ * Dos diferencias con la rama del repo, las dos deliberadas:
+ *  · La rotación por año es SILENCIOSA y se commitea sola. El store es un repo
+ *    administrado por la máquina (`create()` ya commitea); dejar archivos nuevos
+ *    sin commitear ahí es basura que nadie va a mirar.
+ *  · Nada de git hooks. En estos proyectos el trabajo pasa afuera —WordPress por
+ *    MCP—, no en commits: una revisión previa al commit no tendría qué revisar.
+ */
+function storeSetup(ctx: SessionContext, today: Date): Decision {
+  const env = ctx.env
+
+  // Solo fuera de un repo. Un repo sin `.todo/` es un proyecto de código ajeno a
+  // todo esto: recordarle ahí las tareas de un sitio WordPress es exactamente el
+  // aviso fuera de lugar que el modelo aprende a saltear.
+  if (mode(ctx.cwd, { env }) !== "nonrepo") return ALLOW
+
+  let projects: Project[]
+  try {
+    projects = list({ env })
+  } catch {
+    return ALLOW // sin store no hay nada que hacer
+  }
+  if (projects.length === 0) return ALLOW
+
+  const year = ctx.year ?? today.getFullYear()
+  const pendientes: string[] = []
+  let rotados = false
+
+  for (const project of projects) {
+    const dir = projectPath(project.id, { env })
+    if (rotateArchives(dir, year).length > 0) rotados = true
+
+    const todo = readTodoFile(dir, "TODO.md")
+    const decision = staleTodo({
+      hasTodoDir: true,
+      todoCount: openItemTitles(todo).length,
+      daysSinceReview: daysSinceReview(todo, today),
+    })
+    if (decision.action === "allow") continue
+
+    // Una vez por proyecto y por día: son varios proyectos y este aviso no
+    // depende de nada que vos hagas, así que repetirlo en cada sesión es la
+    // receta para que se vuelva invisible.
+    const fecha = today.toISOString().slice(0, 10)
+    if (!markAdvisedOnce(storeStateKey, `stale-${project.id}-${fecha}`, env)) continue
+
+    pendientes.push(`  · ${project.name} — ${motivoDe(decision)}`)
+  }
+
+  if (rotados) commitStore(env)
+  if (pendientes.length === 0) return ALLOW
+
+  return advise(
+    `TODO-TRIAGE-DUE (proyectos sin repo): hay listas que se están acumulando.
+${pendientes.join("\n")}
+Invocar Skill('todo-triage') y elegir el proyecto en el menú. Si el usuario está
+en otra cosa, no lo interrumpas: ofrecelo cuando termine.`,
+  )
+}
+
+/** El estado "ya avisé" del store se guarda bajo una clave fija, no por cwd. */
+const storeStateKey = "todo-store"
+
+/** El motivo que armó staleTodo, sin repetir su lógica de umbrales acá. */
+function motivoDe(decision: Decision): string {
+  const message = decision.action === "advise" ? decision.message : ""
+  return message.match(/acumuló (.+)\./)?.[1] ?? "necesita revisión"
+}
+
+/** El store se versiona solo; una rotación sin commit queda como ruido sin dueño. */
+function commitStore(env?: Env): void {
+  try {
+    const cwd = storeBase(env)
+    execFileSync("git", ["add", "-A"], { cwd, stdio: "ignore" })
+    execFileSync("git", ["commit", "-m", "archive: rotar DONE/DISCARDED por año", "--no-verify"], {
+      cwd,
+      stdio: "ignore",
+    })
+  } catch {
+    // Sin identidad git, sin cambios o sin repo: la rotación ya está hecha en
+    // disco, que es lo que importa. No vale romper el arranque de la sesión.
+  }
 }
 
 /**
