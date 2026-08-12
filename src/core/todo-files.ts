@@ -1,5 +1,7 @@
-import { readFileSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
+import type { Env } from "./paths.ts"
+import { projectForPath } from "./store.ts"
 
 /** Lectura y parseo de los archivos de `.todo/`. Nadie más los interpreta. */
 
@@ -25,6 +27,37 @@ export function openItems(markdown: string): OpenItem[] {
 
 export const openItemTitles = (markdown: string): string[] => openItems(markdown).map((item) => item.title)
 
+/**
+ * Dónde están las tareas contra las que evaluar una edición: el `.todo/` del cwd
+ * o, si el archivo editado vive dentro del store, el del proyecto dueño de ese
+ * path. null si no hay ninguna de las dos.
+ *
+ * La resolución por path es lo que hace viable `editing-item` en los proyectos
+ * sin repo: sin `.todo/` local no hay "el proyecto actual", pero el archivo que
+ * se está tocando ya dice a cuál pertenece.
+ */
+export function editingContext(
+  cwd: string,
+  paths: string[],
+  env?: Env,
+): { dir: string; todo: OpenItem[]; doing: string[] } | null {
+  const dir = (() => {
+    if (existsSync(join(cwd, ".todo"))) return cwd
+    for (const path of paths) {
+      const project = projectForPath(path, { env })
+      if (project) return project.dir
+    }
+    return null
+  })()
+  if (dir === null) return null
+
+  return {
+    dir,
+    todo: openItems(readTodoFile(dir, "TODO.md")),
+    doing: openItemTitles(readTodoFile(dir, "DOING.md")),
+  }
+}
+
 /** Un `.todo/<archivo>` que no existe se lee como vacío: no todos existen siempre. */
 export function readTodoFile(cwd: string, name: string): string {
   try {
@@ -36,6 +69,10 @@ export function readTodoFile(cwd: string, name: string): string {
 
 export const completedCount = (markdown: string): number =>
   markdown.split("\n").filter((line) => line.startsWith("- [x]")).length
+
+/** Los descartados no llevan checkbox: se tachan (`- ~~Título~~`). */
+export const discardedCount = (markdown: string): number =>
+  markdown.split("\n").filter((line) => line.startsWith("- ~~")).length
 
 /** Días desde el `_Última revisión: YYYY-MM-DD_` del encabezado, o null si no está. */
 export function daysSinceReview(markdown: string, today: Date): number | null {

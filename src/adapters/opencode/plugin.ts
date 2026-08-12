@@ -7,7 +7,7 @@ import { branchDoing } from "../../core/rules/branch-doing.ts"
 import { sessionSetup } from "../../core/rules/session-setup.ts"
 import { editingItem } from "../../core/rules/editing-item.ts"
 import { sessionClose } from "../../core/rules/session-close.ts"
-import { openItems, openItemTitles, readTodoFile } from "../../core/todo-files.ts"
+import { editingContext, openItemTitles, readTodoFile } from "../../core/todo-files.ts"
 import { lastSeenHead, lastSeenStamp, markAdvisedOnce, rememberHead, rememberStamp } from "../../core/session-state.ts"
 import { isWindowOpen } from "../../core/window.ts"
 import { currentBranch, currentHead, refLogStamp } from "../../core/git.ts"
@@ -109,6 +109,7 @@ export function createHooks(directory: string, root: string = PLUGIN_ROOT) {
       output: AfterOutput,
     ): Promise<void> => {
       const event = toToolEvent(input.tool, input.args ?? {}, directory, "after", output)
+      const editing = editingContext(directory, event.paths)
       applyAfter(
         mergeDecisions([
           errorTriage(event, {
@@ -119,10 +120,12 @@ export function createHooks(directory: string, root: string = PLUGIN_ROOT) {
           }),
           branchDoing(event, { hasTodoDir, branch: hasTodoDir ? currentBranch(directory) : "" }),
           editingItem(event, {
-            hasTodoDir,
-            todo: hasTodoDir ? openItems(readTodoFile(directory, "TODO.md")) : [],
-            doing: hasTodoDir ? openItemTitles(readTodoFile(directory, "DOING.md")) : [],
-            advisedOnce: (subject) => markAdvisedOnce(directory, subject),
+            // Ver decide.ts: el contexto sale del cwd o del proyecto del store
+            // dueño del archivo editado.
+            hasTodoDir: editing !== null,
+            todo: editing?.todo ?? [],
+            doing: editing?.doing ?? [],
+            advisedOnce: (subject) => markAdvisedOnce(editing?.dir ?? directory, subject),
           }),
         ]),
         output,

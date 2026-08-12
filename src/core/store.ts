@@ -153,6 +153,28 @@ export function create(name: string, opts: StoreOptions = {}): string {
   return id
 }
 
+/**
+ * ¿A qué proyecto del store pertenece este path? null si está afuera.
+ *
+ * Es la resolución más barata y menos ambigua que hay para los proyectos sin
+ * repo: el archivo que se está tocando ya dice de quién es. Sin esto habría que
+ * buscar el nombre del archivo en las tareas de LOS SEIS proyectos, y un
+ * `functions.php` mencionado en tres sitios avisaría del proyecto equivocado.
+ */
+export function projectForPath(path: string, opts: StoreOptions = {}): (Project & { dir: string }) | null {
+  const base = physical(storeBase(opts.env))
+  const here = physical(path)
+  if (!here.startsWith(base + sep)) return null
+
+  const id = here.slice(base.length + 1).split(sep)[0]
+  if (id === undefined || id === "") return null
+
+  // Se valida contra el listado: un directorio suelto dentro del store, sin
+  // config.json, no es un proyecto.
+  const project = list(opts).find((candidate) => candidate.id === id)
+  return project ? { ...project, dir: join(base, id) } : null
+}
+
 export function projectPath(id: string, opts: StoreOptions = {}): string {
   if (!/^[a-z0-9-]+$/.test(id)) throw new Error(`id inválido: ${id}`)
   const dir = join(storeBase(opts.env), id)

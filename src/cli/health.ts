@@ -9,7 +9,7 @@ import { PLUGIN_ROOT } from "../core/paths.ts"
 import { declaredVersion, runConformance, worstStatus, type Check } from "../core/conformance.ts"
 import { openItemTitles } from "../core/rules/pre-commit.ts"
 import { GIT_HOOKS } from "../core/rules/session-setup.ts"
-import { completedCount, readTodoFile } from "../core/todo-files.ts"
+import { completedCount, discardedCount, readTodoFile } from "../core/todo-files.ts"
 import { list, mode, projectPath } from "../core/store.ts"
 
 const strict = process.argv.includes("--strict")
@@ -55,15 +55,12 @@ function reportProject(): void {
       return 0
     }
   }
-  const done = (() => {
-    try {
-      return readFileSync(join(".todo", "DONE.md"), "utf8").split("\n").filter((l) => l.startsWith("- [x]")).length
-    } catch {
-      return 0
-    }
-  })()
+  const done = completedCount(readTodoFile(".", "DONE.md"))
+  const discarded = discardedCount(readTodoFile(".", "DISCARDED.md"))
 
-  console.log(`  · .todo/ — TODO:${count("TODO.md")}  DOING:${count("DOING.md")}  DONE:${done}`)
+  console.log(
+    `  · .todo/ — TODO:${count("TODO.md")}  DOING:${count("DOING.md")}  DONE:${done}  DISCARDED:${discarded}`,
+  )
   reportGitHooks()
 
   try {
@@ -103,7 +100,10 @@ function reportStore(): void {
     const abiertos = openItemTitles(readTodoFile(dir, "TODO.md")).length
     const enCurso = openItemTitles(readTodoFile(dir, "DOING.md")).length
     const cerrados = completedCount(readTodoFile(dir, "DONE.md"))
-    console.log(`      ${project.name.padEnd(34)} TODO:${abiertos}  DOING:${enCurso}  DONE:${cerrados}`)
+    const descartados = discardedCount(readTodoFile(dir, "DISCARDED.md"))
+    console.log(
+      `      ${project.name.padEnd(34)} TODO:${abiertos}  DOING:${enCurso}  DONE:${cerrados}  DISCARDED:${descartados}`,
+    )
   }
 }
 

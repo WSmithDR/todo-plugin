@@ -6,7 +6,7 @@ import { sessionSetup } from "../../core/rules/session-setup.ts"
 import { sessionClose } from "../../core/rules/session-close.ts"
 import { editingItem } from "../../core/rules/editing-item.ts"
 import { isWindowOpen } from "../../core/window.ts"
-import { openItems, openItemTitles, readTodoFile } from "../../core/todo-files.ts"
+import { editingContext, openItemTitles, readTodoFile } from "../../core/todo-files.ts"
 import { lastSeenHead, markAdvisedOnce, rememberHead } from "../../core/session-state.ts"
 import { currentBranch, currentHead } from "../../core/git.ts"
 import { guardEnabled, hasTodoDir, storeAvailable } from "../../core/env.ts"
@@ -62,15 +62,19 @@ export function postToolUse(payload: ClaudePayload): Decision {
   // única combinación donde la respuesta cambia algo, y así no se paga un
   // `git rev-parse` por cada comando que anda bien.
   const storeMode = !todo && event.result?.ok === false && storeAvailable(cwd)
+  const editing = editingContext(cwd, event.paths)
 
   return mergeDecisions([
     errorTriage(event, { hasTodoDir: todo, storeMode }),
     branchDoing(event, { hasTodoDir: todo, branch: todo ? currentBranch(cwd) : "" }),
     editingItem(event, {
-      hasTodoDir: todo,
-      todo: todo ? openItems(readTodoFile(cwd, "TODO.md")) : [],
-      doing: todo ? openItemTitles(readTodoFile(cwd, "DOING.md")) : [],
-      advisedOnce: (subject) => markAdvisedOnce(cwd, subject),
+      // El contexto sale del cwd o —sin `.todo/` local— del proyecto del store
+      // dueño del archivo editado. El "una vez por item" se ancla al mismo dir,
+      // así el aviso de un sitio no consume el cupo de otro.
+      hasTodoDir: editing !== null,
+      todo: editing?.todo ?? [],
+      doing: editing?.doing ?? [],
+      advisedOnce: (subject) => markAdvisedOnce(editing?.dir ?? cwd, subject),
     }),
   ])
 }
