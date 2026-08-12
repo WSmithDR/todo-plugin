@@ -11,7 +11,7 @@ import { openItems, openItemTitles, readTodoFile } from "../../core/todo-files.t
 import { lastSeenHead, lastSeenStamp, markAdvisedOnce, rememberHead, rememberStamp } from "../../core/session-state.ts"
 import { isWindowOpen } from "../../core/window.ts"
 import { currentBranch, currentHead, refLogStamp } from "../../core/git.ts"
-import { guardEnabled } from "../../core/env.ts"
+import { guardEnabled, storeAvailable } from "../../core/env.ts"
 import { injectConfig, type OpenCodeConfig } from "./config.ts"
 import { applyAfter, applyBefore, type AfterOutput } from "./emit.ts"
 import { buildInstructions } from "./instructions.ts"
@@ -111,7 +111,12 @@ export function createHooks(directory: string, root: string = PLUGIN_ROOT) {
       const event = toToolEvent(input.tool, input.args ?? {}, directory, "after", output)
       applyAfter(
         mergeDecisions([
-          errorTriage(event, { hasTodoDir }),
+          errorTriage(event, {
+            hasTodoDir,
+            // Ver decide.ts: solo se consulta el store si el comando falló y no
+            // hay `.todo/` local.
+            storeMode: !hasTodoDir && event.result?.ok === false && storeAvailable(directory),
+          }),
           branchDoing(event, { hasTodoDir, branch: hasTodoDir ? currentBranch(directory) : "" }),
           editingItem(event, {
             hasTodoDir,

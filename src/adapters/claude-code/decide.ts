@@ -9,7 +9,7 @@ import { isWindowOpen } from "../../core/window.ts"
 import { openItems, openItemTitles, readTodoFile } from "../../core/todo-files.ts"
 import { lastSeenHead, markAdvisedOnce, rememberHead } from "../../core/session-state.ts"
 import { currentBranch, currentHead } from "../../core/git.ts"
-import { guardEnabled, hasTodoDir } from "../../core/env.ts"
+import { guardEnabled, hasTodoDir, storeAvailable } from "../../core/env.ts"
 import { parsePayload, toToolEvent, type ClaudePayload } from "./normalize.ts"
 
 /**
@@ -58,8 +58,13 @@ export function postToolUse(payload: ClaudePayload): Decision {
   const cwd = event.cwd
   const todo = hasTodoDir(cwd)
 
+  // El store solo se consulta si el comando falló y no hay `.todo/` local: es la
+  // única combinación donde la respuesta cambia algo, y así no se paga un
+  // `git rev-parse` por cada comando que anda bien.
+  const storeMode = !todo && event.result?.ok === false && storeAvailable(cwd)
+
   return mergeDecisions([
-    errorTriage(event, { hasTodoDir: todo }),
+    errorTriage(event, { hasTodoDir: todo, storeMode }),
     branchDoing(event, { hasTodoDir: todo, branch: todo ? currentBranch(cwd) : "" }),
     editingItem(event, {
       hasTodoDir: todo,

@@ -3,6 +3,13 @@ import { ALLOW, advise, type Decision, type ToolEvent } from "../protocol.ts"
 export type ErrorTriageContext = {
   /** El proyecto tiene `.todo/`. Sin eso no hay dónde anotar nada. */
   hasTodoDir: boolean
+  /**
+   * No hay `.todo/` local pero sí proyectos en el registro central. Pasa cuando
+   * se opera un sitio sin repo: los comandos igual se corren —ssh, wp-cli,
+   * curl— y cuando uno falla hay exactamente el mismo motivo para anotarlo.
+   * Lo único que cambia es que el destino se elige de un menú.
+   */
+  storeMode?: boolean
 }
 
 /** Devuelven non-zero como parte de su uso normal: un fallo no significa nada. */
@@ -23,7 +30,7 @@ const MAX_OUTPUT_CHARS = 400
 export function errorTriage(event: ToolEvent, ctx: ErrorTriageContext): Decision {
   if (event.phase !== "after" || event.kind !== "bash") return ALLOW
   if (!event.result || event.result.ok) return ALLOW
-  if (!ctx.hasTodoDir) return ALLOW
+  if (!ctx.hasTodoDir && ctx.storeMode !== true) return ALLOW
 
   const command = (event.command || "").slice(0, MAX_COMMAND)
   if (TRIVIAL.test(command) || EXPECTED_FAILURE.test(command)) return ALLOW
@@ -44,7 +51,7 @@ export function errorTriage(event: ToolEvent, ctx: ErrorTriageContext): Decision
 Evalúa si vale la pena registrar esto en .todo/TODO.md:
   → Error recurrente o de configuración que podría volver: invocar todo-add
   → Error puntual ya resuelto o esperado:                  ignorar
-
+${ctx.storeMode === true ? "  Nota: acá no hay .todo/ local — todo-add va a pedir a qué proyecto del registro central anotarlo.\n" : ""}
 Solo agregar tarea si hay valor real en trackearla.`,
   )
 }

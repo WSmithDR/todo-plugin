@@ -57,3 +57,25 @@ test("sin output → placeholder en vez de vacío", () => {
 test("fase before → allow (la regla es de post-ejecución)", () => {
   assert.equal(errorTriage({ ...failed("x"), phase: "before" }, CTX).action, "allow")
 })
+
+// ── proyectos sin repo ─────────────────────────────────────────────────────
+
+test("sin .todo/ y sin store → allow: no hay dónde anotar", () => {
+  assert.equal(errorTriage(failed("npm run build"), { hasTodoDir: false }).action, "allow")
+})
+
+test("sin .todo/ pero con store → avisa, y aclara que el destino se elige", () => {
+  // Operar un sitio sin repo no quita que los comandos fallen: ssh, wp-cli, curl.
+  const d = errorTriage(failed("wp plugin update --all"), { hasTodoDir: false, storeMode: true })
+  const message = d.action === "advise" ? d.message : ""
+  assert.match(message, /TODO-ERROR-CHECKER/)
+  assert.match(message, /registro central/)
+})
+
+test("con .todo/ local no aparece la nota del registro central", () => {
+  const message = (() => {
+    const d = errorTriage(failed("npm run build"), CTX)
+    return d.action === "advise" ? d.message : ""
+  })()
+  assert.doesNotMatch(message, /registro central/)
+})

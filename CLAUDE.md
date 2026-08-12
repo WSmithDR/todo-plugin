@@ -171,7 +171,7 @@ src/adapters/claude-code/hook.ts <modo>`.
 | `SessionStart` | Inicio de sesión | `session-setup`: instala los git hooks, rota DONE/DISCARDED por año y detecta `.todo/` sin `config.json` | `advise` |
 | `SessionStart` | Inicio de sesión | `stale-todo`: TODO.md con ≥12 items o >30 días sin revisar → `todo-triage` | `advise` |
 | `PreToolUse(Edit/Write/MultiEdit/Bash)` | Escritura sobre `.todo/` | `guard`: solo pasa dentro de la ventana que abre un skill. Bypass: `TODO_GUARD=off` | `deny` |
-| `PostToolUse(Bash)` | Comando fallido | `error-triage`: evalúa si merece una tarea | `advise` |
+| `PostToolUse(Bash)` | Comando fallido | `error-triage`: evalúa si merece una tarea. Fuera de un repo con proyectos en el store, también avisa: el destino se elige del menú | `advise` |
 | `PostToolUse(Bash)` | `git switch` / `checkout -b` a rama de feature | `branch-doing`: recuerda mover la tarea a DOING.md | `advise` |
 | `PostToolUse(Edit/Write/MultiEdit)` | Editar un archivo que una tarea abierta menciona | `editing-item`: sugiere `todo-doing` | `advise` |
 | `SessionEnd` | Fin de sesión con commits | `session-close`: recuerda cerrar lo que quedó en DOING.md | `advise` |

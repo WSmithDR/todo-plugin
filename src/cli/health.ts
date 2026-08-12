@@ -9,6 +9,8 @@ import { PLUGIN_ROOT } from "../core/paths.ts"
 import { declaredVersion, runConformance, worstStatus, type Check } from "../core/conformance.ts"
 import { openItemTitles } from "../core/rules/pre-commit.ts"
 import { GIT_HOOKS } from "../core/rules/session-setup.ts"
+import { completedCount, readTodoFile } from "../core/todo-files.ts"
+import { list, mode, projectPath } from "../core/store.ts"
 
 const strict = process.argv.includes("--strict")
 
@@ -42,7 +44,7 @@ process.exit(status === "fail" ? 1 : 0)
 function reportProject(): void {
   console.log("")
   if (!existsSync(".todo")) {
-    console.log("  · .todo/ no existe — se crea con el primer todo-add")
+    reportStore()
     return
   }
 
@@ -69,6 +71,39 @@ function reportProject(): void {
     console.log(`  · config: ${Object.entries(config).map(([k, v]) => `${k}=${String(v)}`).join(" · ")}`)
   } catch {
     console.log("  ⚠ config: sin configurar — corré la skill todo-config")
+  }
+}
+
+/**
+ * Sin `.todo/` local puede no haber nada… o puede haber medio registro central.
+ *
+ * Antes acá se imprimía "no existe — se crea con el primer todo-add" sin mirar
+ * el store: en una máquina con seis proyectos sin repo, la herramienta a la que
+ * vas justamente cuando algo no anda te contestaba que no hay nada.
+ */
+function reportStore(): void {
+  const projects = (() => {
+    try {
+      return list()
+    } catch {
+      return []
+    }
+  })()
+
+  if (projects.length === 0) {
+    console.log("  · .todo/ no existe — se crea con el primer todo-add")
+    return
+  }
+
+  const modo = mode(process.cwd()) === "nonrepo" ? "acá se opera sobre el store" : "estás en un repo, así que las skills usarían su .todo/"
+  console.log(`  · sin .todo/ local · registro central: ${projects.length} proyectos (${modo})`)
+
+  for (const project of projects) {
+    const dir = projectPath(project.id)
+    const abiertos = openItemTitles(readTodoFile(dir, "TODO.md")).length
+    const enCurso = openItemTitles(readTodoFile(dir, "DOING.md")).length
+    const cerrados = completedCount(readTodoFile(dir, "DONE.md"))
+    console.log(`      ${project.name.padEnd(34)} TODO:${abiertos}  DOING:${enCurso}  DONE:${cerrados}`)
   }
 }
 
