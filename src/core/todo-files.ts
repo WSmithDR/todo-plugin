@@ -36,3 +36,13 @@ export function readTodoFile(cwd: string, name: string): string {
 
 export const completedCount = (markdown: string): number =>
   markdown.split("\n").filter((line) => line.startsWith("- [x]")).length
+
+/** Días desde el `_Última revisión: YYYY-MM-DD_` del encabezado, o null si no está. */
+export function daysSinceReview(markdown: string, today: Date): number | null {
+  const match = markdown.match(/_Última revisión:\s*(\d{4}-\d{2}-\d{2})/)
+  const date = match?.[1]
+  if (date === undefined) return null
+
+  const millis = today.getTime() - new Date(`${date}T00:00:00`).getTime()
+  return Math.floor(millis / 86_400_000)
+}

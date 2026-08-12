@@ -3,6 +3,8 @@ import { join } from "node:path"
 import { ALLOW, advise, mergeDecisions, type Decision } from "../protocol.ts"
 import { PLUGIN_ROOT } from "../paths.ts"
 import { rotateArchives } from "../archive.ts"
+import { daysSinceReview, openItemTitles, readTodoFile } from "../todo-files.ts"
+import { staleTodo } from "./stale-todo.ts"
 
 export type SessionContext = {
   cwd: string
@@ -10,6 +12,8 @@ export type SessionContext = {
   pluginRoot?: string
   /** Inyectable para los tests; en producción es el año de hoy. */
   year?: number
+  /** Inyectable para los tests; en producción, hoy. */
+  today?: Date
 }
 
 /**
@@ -28,9 +32,17 @@ export function sessionSetup(ctx: SessionContext): Decision {
   const root = ctx.pluginRoot ?? PLUGIN_ROOT
   if (!existsSync(join(ctx.cwd, ".todo"))) return ALLOW
 
+  const today = ctx.today ?? new Date()
+  const todo = readTodoFile(ctx.cwd, "TODO.md")
+
   return mergeDecisions([
     ...GIT_HOOKS.map((name) => installGitHook(ctx.cwd, root, name)),
-    archiveOldYears(ctx.cwd, ctx.year ?? new Date().getFullYear()),
+    archiveOldYears(ctx.cwd, ctx.year ?? today.getFullYear()),
+    staleTodo({
+      hasTodoDir: true,
+      todoCount: openItemTitles(todo).length,
+      daysSinceReview: daysSinceReview(todo, today),
+    }),
     checkConfig(ctx.cwd),
   ])
 }

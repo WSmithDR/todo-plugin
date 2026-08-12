@@ -127,17 +127,23 @@ año en curso sin cambiar nada; para el histórico están los archivos hermanos.
 
 ## Skills
 
-| Skill | When to use |
-|---|---|
-| `todo-add` | Add one or more items to TODO.md |
-| `todo-triage` | Classify and prioritize existing items by quadrant |
-| `todo-doing` | Move an item from TODO to DOING |
-| `todo-done` | Mark an item complete and move to DONE |
-| `todo-item` | Read or inspect a specific task |
-| `todo-clarify` | Add detail or acceptance criteria to a task |
-| `todo-recommend` | Suggest the next item to work on |
-| `todo-solutions` | Attach concrete solution options to a task |
-| `todo-audit` | Full codebase audit — generates TODO.md from scratch |
+Cada skill tiene que tener **quién la despierta**. Una skill que solo se invoca si
+el usuario se acuerda del nombre, no se invoca: la columna de la derecha es tan
+parte del diseño como la de la izquierda.
+
+| Skill | When to use | Quién la despierta |
+|---|---|---|
+| `todo-add` | Add one or more items to TODO.md | `error-triage` (comando fallido) |
+| `todo-triage` | Classify and prioritize existing items by quadrant | `stale-todo` (SessionStart: ≥12 items o >30 días sin revisar) |
+| `todo-doing` | Move an item from TODO to DOING | `branch-doing` (rama nueva) · `editing-item` (tocás un archivo que una tarea menciona) |
+| `todo-done` | Mark an item complete and move to DONE | `pre-commit` · `post-commit` · `session-close` |
+| `todo-item` | Alta completa de un item en un paso (add → solutions → recommend → clarify) | El usuario |
+| `todo-clarify` | Explicar términos técnicos en TODO/DOING | `todo-triage`, que ya leyó los dos archivos |
+| `todo-solutions` | Attach concrete solution options to a task | `todo-doing`, al empezar un item sin opciones |
+| `todo-recommend` | Elegir cuál de las opciones implementar | `todo-solutions`, y `todo-doing` con él |
+| `todo-config` | Configuración por proyecto | `session-setup` (`.todo/` sin config.json) |
+| `todo-health` | Diagnóstico de la instalación | El usuario, cuando algo no anda. **No necesita disparador: es el disparador** |
+| `todo-audit` | Full codebase audit — generates TODO.md from scratch | El usuario / el agente `todo-audit` |
 
 ## Agents
 
@@ -154,6 +160,7 @@ src/adapters/claude-code/hook.ts <modo>`.
 | Hook | Trigger | Regla | Verbo |
 |---|---|---|---|
 | `SessionStart` | Inicio de sesión | `session-setup`: instala los git hooks, rota DONE/DISCARDED por año y detecta `.todo/` sin `config.json` | `advise` |
+| `SessionStart` | Inicio de sesión | `stale-todo`: TODO.md con ≥12 items o >30 días sin revisar → `todo-triage` | `advise` |
 | `PreToolUse(Edit/Write/MultiEdit/Bash)` | Escritura sobre `.todo/` | `guard`: solo pasa dentro de la ventana que abre un skill. Bypass: `TODO_GUARD=off` | `deny` |
 | `PostToolUse(Bash)` | Comando fallido | `error-triage`: evalúa si merece una tarea | `advise` |
 | `PostToolUse(Bash)` | `git switch` / `checkout -b` a rama de feature | `branch-doing`: recuerda mover la tarea a DOING.md | `advise` |

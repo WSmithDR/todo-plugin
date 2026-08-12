@@ -159,6 +159,10 @@ Selection criteria for top 3:
 - Prefer items that unblock other items
 - Avoid recommending items without solution options yet (flag those separately)
 
+### 6b. Términos sin explicar
+
+Ya leíste los dos archivos enteros para triagear: es el único momento en que revisar el vocabulario no cuesta una pasada extra. Si aparecen acrónimos, jerga del dominio o nombres de patrones sin aclarar, ofrecé `todo-clarify` — no lo corras por tu cuenta salvo que el usuario lo pida. Si está todo claro, no digas nada.
+
 ### 7. Update dates
 
 ```bash

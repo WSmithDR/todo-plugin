@@ -117,6 +117,8 @@ If the item has no options yet:
 - [ ] **[Título]** — [descripción] _(creado por: GitName · YYYY-MM-DD | iniciado: 2026-06-26T14:32-05:00)_
 ```
 
+**Y ahí mismo ofrecé `todo-solutions` + `todo-recommend`** (en ese orden) antes de que se escriba una línea de código. Empezar a implementar es exactamente el momento en que decidir el enfoque todavía es barato: una vez que hay diff, la primera idea gana por inercia. Si el usuario prefiere arrancar igual, seguí — el ofrecimiento se hace una vez, no se insiste.
+
 The creator info is read from the existing item's `_(creado por: ...)_` tag — preserve it exactly. The `iniciado:` value is `date -Iminutes` (timestamp ISO con hora y zona), no solo la fecha — bitacora lo usa para estimar cuánto llevó la tarea.
 
 ### 5. Update dates
