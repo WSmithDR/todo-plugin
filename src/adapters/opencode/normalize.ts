@@ -67,14 +67,17 @@ const EXIT_KEYS = ["exit", "exitCode", "exit_code", "code", "status"]
 
 /**
  * OpenCode no declara en su tipo cómo reporta el fallo de un comando: el hook
- * `after` recibe `{title, output, metadata}` y `metadata` es `any`.
+ * `after` recibe `{title, output, metadata, attachments}` y `metadata` es `any`.
  *
- * Se buscan las claves plausibles y, si no hay ninguna, se asume ÉXITO. La
- * degradación es en la dirección segura: error-triage solo aconseja ante un
- * fallo, así que no detectarlo hace que calle — nunca que invente un aviso sobre
- * un comando que anduvo bien.
+ * Verificado contra opencode 1.17.18 corriendo, con un plugin espía: para `bash`
+ * llega `metadata: { output: string, exit: number, truncated: boolean }` — o sea
+ * `exit`, la primera de EXIT_KEYS. Sigue siendo una búsqueda y no un acceso
+ * directo porque el contrato no está declarado y la próxima versión puede
+ * renombrarla sin que sea un breaking change para ellos.
  *
- * Es el único punto del adapter que no pude verificar contra OpenCode corriendo.
+ * Si no hay ninguna clave se asume ÉXITO. La degradación es en la dirección
+ * segura: error-triage solo aconseja ante un fallo, así que no detectarlo hace
+ * que calle — nunca que invente un aviso sobre un comando que anduvo bien.
  */
 function toResult(after?: OpenCodeAfter): { ok: boolean; text: string } {
   const text = after?.output ?? ""

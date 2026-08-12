@@ -49,6 +49,18 @@ test("un exit code numérico distinto de 0 marca fallo", () => {
   }
 })
 
+test("la forma REAL de opencode 1.17.18 se lee como fallo", () => {
+  // Capturada con un plugin espía sobre `ls /noexiste`: es el contrato que hay
+  // que preservar, no una forma inventada. Si una versión futura lo renombra,
+  // este test es el que lo delata.
+  const event = toToolEvent("bash", { command: "ls /noexiste-xyz" }, "/p", "after", {
+    output: "ls: no se puede acceder a '/noexiste-xyz': No existe el archivo o el directorio\n",
+    metadata: { output: "ls: no se puede acceder…\n", exit: 2, truncated: false },
+  })
+  assert.equal(event.result?.ok, false)
+  assert.match(event.result?.text ?? "", /No existe el archivo/)
+})
+
 test("exit code 0 es éxito", () => {
   assert.equal(toToolEvent("bash", {}, "/p", "after", { output: "ok", metadata: { exit: 0 } }).result?.ok, true)
 })

@@ -205,6 +205,13 @@ Usar el hook `event` obligaría a adivinar el nombre del evento de sesión.
 
 **No hay lógica duplicada entre CLIs:** los dos adapters importan el mismo `core/`.
 
+**Verificado en vivo contra opencode 1.17.18** (2026-08-12), en un proyecto ajeno
+al repo del plugin: carga fuera de su repo, instala y **encadena** los git hooks,
+inyecta skills/comandos/agentes, el guard deniega la edición directa y deja pasar
+la que abre una skill, y por `system.transform` y `tool.execute.after` llegan al
+modelo `stale-todo`, `branch-doing` y `error-triage`. El fallo de un comando viene
+en `metadata.exit` (ver `normalize.ts`).
+
 ### Cómo referenciar el root del plugin
 
 Los scripts que invocan las skills se resuelven así, y en ese orden:
