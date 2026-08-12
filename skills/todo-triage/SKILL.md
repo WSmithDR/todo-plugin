@@ -159,6 +159,31 @@ Selection criteria for top 3:
 - Prefer items that unblock other items
 - Avoid recommending items without solution options yet (flag those separately)
 
+### 5b. Tareas que quizá ya están resueltas
+
+Lo que más ensucia una lista vieja no son las tareas mal priorizadas: son las que ya
+se hicieron y nadie cerró. Para encontrarlas:
+
+```bash
+"${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-stale.sh"
+```
+
+Lista las tareas abiertas cuyos archivos cambiaron **después** de que la tarea se creó,
+con los commits que los tocaron.
+
+**Es una pista, no un veredicto, y la decisión es del usuario — no cierres nada por tu
+cuenta.** Para cada candidata: mirá el commit, mirá el código, y preguntá con
+`AskUserQuestion` — "¿esto ya está hecho?" — ofreciendo cerrar con `todo-done`,
+dejarla abierta, o cerrarla parcialmente ajustando la descripción a lo que falta.
+
+Cuando la salida marque **"señal débil"**, quiere decir que varias tareas mencionan
+ese mismo archivo (un `functions.php`, un cajón de sastre), así que la coincidencia
+puede no significar nada. Decilo al preguntar, en vez de presentarlo como evidencia.
+
+Si el usuario te dice que en este proyecto cierto archivo no sirve como señal,
+**anotalo en el reporte final** y seguí: hoy no hay dónde guardar esa preferencia, y
+una lista fija de nombres en el código crece sin fondo con cada stack.
+
 ### 6b. Términos sin explicar
 
 Ya leíste los dos archivos enteros para triagear: es el único momento en que revisar el vocabulario no cuesta una pasada extra. Si aparecen acrónimos, jerga del dominio o nombres de patrones sin aclarar, ofrecé `todo-clarify` — no lo corras por tu cuenta salvo que el usuario lo pida. Si está todo claro, no digas nada.

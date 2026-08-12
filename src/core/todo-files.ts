@@ -83,6 +83,10 @@ const DEMASIADO_COMUNES = new Set([
   "index.ts", "index.js", "index.tsx", "main.ts", "main.js", "mod.ts",
   "types.ts", "utils.ts", "config.ts", "README.md", "package.json",
 ])
+// NO agregar nombres acá por cada stack que aparezca. Esta lista es de la época
+// en que el matcher solo servía a `editing-item`, y crece sin fondo: hoy
+// WordPress, mañana Django. Para lo demás, la señal débil se REPORTA y la decide
+// quien lee — ver `sharedBy` en core/stale-items.ts.
 
 /** Un basename que sirve para relacionar: ni corto, ni de los que están en todos lados. */
 export function significantBasename(path: string): string | null {
