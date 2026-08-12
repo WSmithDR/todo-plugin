@@ -16,7 +16,7 @@ function fakePluginRoot(dir: string): string {
 }
 
 function withProject<T>(
-  fn: (ctx: { cwd: string; pluginRoot: string; hookPath: string }) => T,
+  fn: (ctx: { cwd: string; pluginRoot: string; hookPath: string; env: Record<string, string> }) => T,
   opts: { todo?: boolean; git?: boolean; config?: boolean } = {},
 ): T {
   const dir = mkdtempSync(join(tmpdir(), "todo-session-"))
@@ -31,6 +31,10 @@ function withProject<T>(
       cwd,
       pluginRoot: fakePluginRoot(dir),
       hookPath: join(cwd, ".git", "hooks", "pre-commit"),
+      // Sin esto, los casos sin `.todo/` entran a la rama del store y leen el
+      // registro REAL del usuario: le consumen el aviso del día y el test pasa
+      // o falla según lo que él tenga hoy. Ya pasó.
+      env: { HOME: dir, XDG_DATA_HOME: join(dir, "data"), XDG_CACHE_HOME: join(dir, "cache") },
     })
   } finally {
     rmSync(dir, { recursive: true, force: true })
@@ -39,14 +43,14 @@ function withProject<T>(
 
 test("sin .todo/ no hace nada", () => {
   withProject(
-    ({ cwd, pluginRoot }) => assert.equal(sessionSetup({ cwd, pluginRoot }).action, "allow"),
+    ({ cwd, pluginRoot, env }) => assert.equal(sessionSetup({ cwd, pluginRoot, env }).action, "allow"),
     { todo: false },
   )
 })
 
 test("instala el git hook y avisa que falta config", () => {
-  withProject(({ cwd, pluginRoot, hookPath }) => {
-    const d = sessionSetup({ cwd, pluginRoot })
+  withProject(({ cwd, pluginRoot, hookPath, env }) => {
+    const d = sessionSetup({ cwd, pluginRoot, env })
     assert.equal(readlinkSync(hookPath), join(pluginRoot, "bin", "hooks", "pre-commit.sh"))
 
     const message = d.action === "advise" ? d.message : ""
@@ -57,9 +61,9 @@ test("instala el git hook y avisa que falta config", () => {
 
 test("con config.json solo avisa la instalación del hook", () => {
   withProject(
-    ({ cwd, pluginRoot }) => {
+    ({ cwd, pluginRoot, env }) => {
       const message = (() => {
-        const d = sessionSetup({ cwd, pluginRoot })
+        const d = sessionSetup({ cwd, pluginRoot, env })
         return d.action === "advise" ? d.message : ""
       })()
       assert.match(message, /TODO-SETUP/)
@@ -71,9 +75,9 @@ test("con config.json solo avisa la instalación del hook", () => {
 
 test("el hook ya instalado no se reinstala ni se reporta", () => {
   withProject(
-    ({ cwd, pluginRoot }) => {
-      sessionSetup({ cwd, pluginRoot })
-      assert.equal(sessionSetup({ cwd, pluginRoot }).action, "allow")
+    ({ cwd, pluginRoot, env }) => {
+      sessionSetup({ cwd, pluginRoot, env })
+      assert.equal(sessionSetup({ cwd, pluginRoot, env }).action, "allow")
     },
     { config: true },
   )
@@ -81,12 +85,12 @@ test("el hook ya instalado no se reinstala ni se reporta", () => {
 
 test("un pre-commit ajeno se ENCADENA: pasa a .local y el del plugin toma el slot", () => {
   withProject(
-    ({ cwd, pluginRoot, hookPath }) => {
+    ({ cwd, pluginRoot, hookPath, env }) => {
       const ajeno = join(cwd, "otro-hook.sh")
       writeFileSync(ajeno, "#!/bin/bash\nexit 0\n")
       symlinkSync(ajeno, hookPath)
 
-      const d = sessionSetup({ cwd, pluginRoot })
+      const d = sessionSetup({ cwd, pluginRoot, env })
       assert.equal(readlinkSync(hookPath), join(pluginRoot, "bin", "hooks", "pre-commit.sh"))
       assert.equal(readlinkSync(`${hookPath}.local`), ajeno, "el hook ajeno sigue existiendo, encadenado")
       assert.match(d.action === "advise" ? d.message : "", /se movió a pre-commit\.local/)
@@ -97,9 +101,9 @@ test("un pre-commit ajeno se ENCADENA: pasa a .local y el del plugin toma el slo
 
 test("un pre-commit ajeno que es archivo regular también se encadena", () => {
   withProject(
-    ({ cwd, pluginRoot, hookPath }) => {
+    ({ cwd, pluginRoot, hookPath, env }) => {
       writeFileSync(hookPath, "#!/bin/bash\necho ajeno\n")
-      sessionSetup({ cwd, pluginRoot })
+      sessionSetup({ cwd, pluginRoot, env })
       assert.equal(lstatSync(hookPath).isSymbolicLink(), true)
       assert.match(readFileSync(`${hookPath}.local`, "utf8"), /echo ajeno/)
     },
@@ -109,11 +113,11 @@ test("un pre-commit ajeno que es archivo regular también se encadena", () => {
 
 test("si ya hay un .local no se toca nada: la cadena de tres se resuelve a mano", () => {
   withProject(
-    ({ cwd, pluginRoot, hookPath }) => {
+    ({ cwd, pluginRoot, hookPath, env }) => {
       writeFileSync(hookPath, "#!/bin/bash\necho ajeno\n")
       writeFileSync(`${hookPath}.local`, "#!/bin/bash\necho viejo\n")
 
-      const d = sessionSetup({ cwd, pluginRoot })
+      const d = sessionSetup({ cwd, pluginRoot, env })
       assert.equal(lstatSync(hookPath).isSymbolicLink(), false, "el ajeno no se movió")
       assert.match(readFileSync(`${hookPath}.local`, "utf8"), /echo viejo/, "el .local previo se conserva")
       assert.match(d.action === "advise" ? d.message : "", /ya hay un pre-commit\.local/)
@@ -124,8 +128,8 @@ test("si ya hay un .local no se toca nada: la cadena de tres se resuelve a mano"
 
 test("se instalan los dos hooks, no solo el pre-commit", () => {
   withProject(
-    ({ cwd, pluginRoot }) => {
-      sessionSetup({ cwd, pluginRoot })
+    ({ cwd, pluginRoot, env }) => {
+      sessionSetup({ cwd, pluginRoot, env })
       for (const name of GIT_HOOKS) {
         assert.equal(
           readlinkSync(join(cwd, ".git", "hooks", name)),
@@ -140,8 +144,8 @@ test("se instalan los dos hooks, no solo el pre-commit", () => {
 
 test("sin .git/ no intenta instalar nada", () => {
   withProject(
-    ({ cwd, pluginRoot }) => {
-      const d = sessionSetup({ cwd, pluginRoot })
+    ({ cwd, pluginRoot, env }) => {
+      const d = sessionSetup({ cwd, pluginRoot, env })
       assert.match(d.action === "advise" ? d.message : "", /TODO-CONFIG-MISSING/)
       assert.doesNotMatch(d.action === "advise" ? d.message : "", /TODO-SETUP/)
     },

@@ -14,6 +14,14 @@ const CACHE = mkdtempSync(join(tmpdir(), "todo-oc-cache-"))
 process.env.XDG_CACHE_HOME = CACHE
 process.on("exit", () => rmSync(CACHE, { recursive: true, force: true }))
 
+// Y el store: `createHooks` corre sessionSetup y no acepta env inyectable, así
+// que la única forma de que no lea el registro REAL del usuario es apuntarle el
+// XDG del proceso a un temp. Un test que le consume el aviso del día a alguien
+// es peor que un test que falla.
+const DATA = mkdtempSync(join(tmpdir(), "todo-oc-data-"))
+process.env.XDG_DATA_HOME = DATA
+process.on("exit", () => rmSync(DATA, { recursive: true, force: true }))
+
 // El finally tiene que esperar a que la promesa RESUELVA. Con `return fn(dir)` el
 // directorio se borraba apenas fn devolvía la promesa, y cualquier test que
 // hiciera trabajo real después de un await se quedaba sin archivos.
