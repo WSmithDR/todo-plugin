@@ -62,6 +62,12 @@ cd "$("${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" path "<id ele
 
 Follow each skill's own rules. No need to repeat them here.
 
+**La verificación de duplicados (paso 1b de `todo-add`) no se saltea.** Es lo primero
+que corre esta cadena, y su resultado puede cortarla: si el item ya está en TODO.md o
+DOING.md, no hay alta que hacer —hay un item existente que enriquecer, y para eso van
+`todo-solutions`/`todo-recommend` sobre ÉL—; si está en DONE.md o DISCARDED.md, la
+respuesta al usuario es esa, no un item nuevo.
+
 ## When to use individual skills instead
 
 Use `todo-item` for **new items** that deserve full treatment immediately.

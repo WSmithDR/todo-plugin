@@ -9,7 +9,7 @@ import { execFileSync } from "node:child_process"
 import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { preCommitMarker } from "../core/git.ts"
-import { openItemTitles, preCommitReview } from "../core/rules/pre-commit.ts"
+import { openItemTitles, openItems, preCommitReview } from "../core/rules/pre-commit.ts"
 
 const MAX_STAGED_SHOWN = 20
 const RECENT_COMMITS = 5
@@ -41,7 +41,7 @@ const decision = preCommitReview({
     line.startsWith("+- [x]"),
   ).length,
   doing: openItemTitles(read(".todo/DOING.md")),
-  todoCount: openItemTitles(read(".todo/TODO.md")).length,
+  todoOpen: openItems(read(".todo/TODO.md")),
   recentCommits: lines(git("log", "--oneline", `-${RECENT_COMMITS}`)),
 })
 

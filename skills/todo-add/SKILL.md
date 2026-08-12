@@ -117,6 +117,30 @@ _Última revisión: YYYY-MM-DD_
 > Diferir o eliminar. Deuda técnica, cosméticos, nice-to-haves.
 ```
 
+### 1b. ¿Esto ya está registrado? (obligatorio, antes de escribir nada)
+
+Un item duplicado no es solo ruido: parte la historia en dos y ninguna de las dos
+versiones queda con el registro completo. Buscá en **los cuatro archivos**, más los
+archivos de años anteriores:
+
+```bash
+grep -in "<2 o 3 palabras clave del item>" .todo/*.md
+```
+
+Usá palabras del problema, no de la solución (`popup`, `SMS`, `timezone`), y probá
+más de una. Según dónde aparezca:
+
+| Aparece en | Qué hacer |
+|---|---|
+| `TODO.md` | **No agregues nada.** Enriquecé el item existente: sumá lo que sepas ahora a su descripción, y decíselo al usuario ("ya estaba, le agregué X"). |
+| `DOING.md` | Ya está en curso. Igual que arriba, y aclaralo — el usuario quizás no sabía. |
+| `DONE.md` / `DONE-<año>.md` | **Ya se resolvió.** Mostrá la fecha y la narrativa del `✓ resuelto:`. Si el problema volvió, agregalo como item NUEVO y decí explícitamente que es una **regresión** de esa tarea, citándola: sin eso parece un bug nuevo y se vuelve a diagnosticar desde cero. |
+| `DISCARDED.md` / `DISCARDED-<año>.md` | Se descartó **a propósito**. Mostrá el motivo y **preguntá al usuario si algo cambió** antes de re-agregarlo. DISCARDED.md existe para que una decisión tomada no se vuelva a discutir sin querer. |
+| En ninguno | Seguí normalmente. |
+
+Si el usuario pidió agregar varios items, hacé esta verificación **por item**: que uno
+sea nuevo no dice nada de los otros.
+
 ### 2. Get creator identity
 
 ```bash

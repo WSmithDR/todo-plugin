@@ -1,4 +1,5 @@
 import { ALLOW, advise, type Decision, type ToolEvent } from "../protocol.ts"
+import { itemsMentioning } from "../todo-files.ts"
 
 export type EditingItemContext = {
   hasTodoDir: boolean
@@ -9,16 +10,6 @@ export type EditingItemContext = {
   /** Marca el aviso y devuelve si era nuevo. Evita repetirlo en cada edición. */
   advisedOnce: (subject: string) => boolean
 }
-
-/**
- * Nombres tan comunes que aparecer en un item no significa nada. Sin este filtro,
- * cualquier item que mencione `index.ts` avisaría al tocar cualquier index.ts del
- * repo.
- */
-const DEMASIADO_COMUNES = new Set([
-  "index.ts", "index.js", "index.tsx", "main.ts", "main.js", "mod.ts",
-  "types.ts", "utils.ts", "config.ts", "README.md", "package.json",
-])
 
 /**
  * Empezaste a editar un archivo que un item de TODO.md menciona, y ese item no
@@ -39,28 +30,18 @@ export function editingItem(event: ToolEvent, ctx: EditingItemContext): Decision
 
   const enCurso = new Set(ctx.doing)
 
-  for (const path of event.paths) {
-    // El propio .todo/ no cuenta: editarlo es la operación del plugin, no trabajo
-    // sobre una tarea.
-    if (path.includes(".todo/")) continue
+  for (const { item, basename } of itemsMentioning(ctx.todo, event.paths)) {
+    if (enCurso.has(item.title)) continue
+    if (!ctx.advisedOnce(item.title)) continue
 
-    const basename = path.split(/[\\/]/).pop() ?? ""
-    if (basename.length < 5 || DEMASIADO_COMUNES.has(basename)) continue
-
-    for (const item of ctx.todo) {
-      if (enCurso.has(item.title)) continue
-      if (!item.text.includes(basename)) continue
-      if (!ctx.advisedOnce(item.title)) continue
-
-      return advise(
-        `TODO-DOING: estás editando ${basename}, que la tarea abierta "${item.title}" menciona,
+    return advise(
+      `TODO-DOING: estás editando ${basename}, que la tarea abierta "${item.title}" menciona,
 y esa tarea no está en .todo/DOING.md.
 
 Si arrancaste con ella, movela con la skill todo-doing — DOING.md es la fuente de
 verdad de lo que está en curso, y el pre-commit la usa para sugerir qué cerrar.
 Si estás tocando el archivo por otra razón, ignorá este aviso: no se repite.`,
-      )
-    }
+    )
   }
 
   return ALLOW

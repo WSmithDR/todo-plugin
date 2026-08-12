@@ -2,6 +2,8 @@ import { ALLOW, advise, deny, type Decision } from "../protocol.ts"
 
 // Re-export por compatibilidad: el parseo ahora vive en core/todo-files.ts.
 export { openItemTitles } from "../todo-files.ts"
+import { itemsMentioning, openItems, type OpenItem } from "../todo-files.ts"
+export { openItems }
 
 export type PreCommitInput = {
   hasTodoDir: boolean
@@ -11,12 +13,13 @@ export type PreCommitInput = {
   markedCheckboxes: number
   /** Títulos de los items abiertos en DOING.md. */
   doing: string[]
-  /** Cuántos items abiertos hay en TODO.md. */
-  todoCount: number
+  /** Los items abiertos de TODO.md, con su texto: se cruzan contra el staging. */
+  todoOpen: OpenItem[]
   recentCommits: string[]
 }
 
 const MAX_DOING_SHOWN = 8
+const MAX_RELATED_SHOWN = 6
 
 /**
  * Revisión previa al commit. Editor-agnóstico: lo invoca git, no un CLI de IA,
@@ -45,10 +48,24 @@ Un item completado NO se marca: se MUEVE a DONE.md con narrativa y atribución.
     const items = input.doing.slice(0, MAX_DOING_SHOWN).map((title) => `  · ${title}`)
     sections.push(`Tareas EN PROGRESO (${input.doing.length} en DOING.md):\n${items.join("\n")}\n`)
   }
-  if (input.todoCount > 0) {
-    sections.push(`Tareas ABIERTAS: ${input.todoCount} items en TODO.md\n`)
+
+  // Lo que se rezaga es esto: la tarea que nunca pasó por DOING y sigue abierta
+  // aunque el arreglo ya esté hecho. Mostrar solo el CONTADOR de TODO.md no
+  // alcanzaba — nadie compara 40 items contra un diff. Nombrar las que hablan de
+  // lo que estás commiteando convierte el aviso en una pregunta concreta.
+  const relacionadas = itemsMentioning(input.todoOpen, input.staged)
+  if (relacionadas.length > 0) {
+    const items = relacionadas
+      .slice(0, MAX_RELATED_SHOWN)
+      .map(({ item, basename }) => `  · ${item.title}  (menciona ${basename})`)
+    sections.push(
+      `Tareas ABIERTAS que mencionan archivos de este commit — ¿alguna quedó resuelta?:\n${items.join("\n")}\n`,
+    )
+  } else if (input.todoOpen.length > 0) {
+    sections.push(`Tareas ABIERTAS: ${input.todoOpen.length} items en TODO.md (ninguna menciona lo que estás commiteando)\n`)
   }
-  if (input.doing.length === 0 && input.todoCount === 0) {
+
+  if (input.doing.length === 0 && input.todoOpen.length === 0) {
     sections.push(`Sin tareas abiertas: si este commit resolvió algo, igual va registrado (paso 3).\n`)
   }
 
@@ -59,8 +76,11 @@ Un item completado NO se marca: se MUEVE a DONE.md con narrativa y atribución.
   sections.push(`Commits recientes:\n${commits}
 
 Instrucciones:
-  1. Compará los archivos en staging con las tareas en progreso.
-  2. Si alguna tarea abierta fue resuelta por este commit → invocá todo-done primero.
+  1. Compará los archivos en staging con las tareas de arriba — las EN PROGRESO y
+     las ABIERTAS que mencionan esos archivos.
+  2. Si alguna quedó resuelta por este commit → invocá todo-done primero. Una tarea
+     abierta cuyo arreglo ya está en el diff no se deja para después: se cierra acá
+     o se queda rezagada para siempre.
   3. Si el commit resolvió algo que NO figura en TODO.md/DOING.md → NO uses --no-verify:
      creá la tarea ahora y cerrala en el mismo paso con todo-done (registrala directo
      en DONE.md, con narrativa y responsable). Un arreglo sin tarea es trabajo que

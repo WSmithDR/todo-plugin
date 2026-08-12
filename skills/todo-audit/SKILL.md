@@ -105,6 +105,33 @@ Go through every major component systematically. For each, ask:
 
 **Performance:** independent sequential calls that could run in parallel, repeated queries that could be cached.
 
+### 3b. Descartar lo que ya está resuelto o descartado (obligatorio)
+
+Una auditoría escribe TODO.md **desde cero**, así que sin este paso resucita todo lo
+que ya cerraste: los hallazgos vuelven a aparecer como si fueran nuevos y el registro
+pierde el sentido. Antes de clasificar nada:
+
+```bash
+cat .todo/DONE.md .todo/DONE-*.md .todo/DISCARDED.md .todo/DISCARDED-*.md 2>/dev/null
+cat .todo/TODO.md .todo/DOING.md 2>/dev/null
+```
+
+Para cada hallazgo, cruzalo contra eso:
+
+- **Está en DONE (o su archivo de año)** → no lo agregues. Si el código muestra que el
+  problema volvió, agregalo diciendo que es una **regresión** de esa tarea y citando su
+  fecha de cierre.
+- **Está en DISCARDED** → no lo agregues. Fue una decisión, no un olvido; si creés que
+  hoy corresponde revisarla, decíselo al usuario en el reporte final en vez de meterlo
+  de vuelta en la lista.
+- **Ya está en TODO.md o DOING.md** → conservá el item existente **con su metadata
+  original** (`creado por`, `iniciado`) y sumale lo que hayas aprendido. Reescribirlo
+  como nuevo le borra la antigüedad, que es justo lo que hace visible lo que se está
+  pudriendo.
+
+Reportá al final cuántos hallazgos se filtraron por este paso: es la medida de cuánto
+trabajo ya estaba hecho.
+
 ### 4. Classify each finding into the Eisenhower Matrix
 
 Answer two questions for each finding:

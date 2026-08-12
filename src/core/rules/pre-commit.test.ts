@@ -7,7 +7,7 @@ const base = {
   staged: ["src/x.ts"],
   markedCheckboxes: 0,
   doing: [] as string[],
-  todoCount: 0,
+  todoOpen: [] as { title: string; text: string }[],
   recentCommits: ["abc123 fix: algo"],
 }
 
@@ -37,7 +37,7 @@ test("tareas en DOING + staging → advise con los títulos", () => {
 })
 
 test("solo TODO.md con items → advise", () => {
-  assert.equal(preCommitReview({ ...base, todoCount: 3 }).action, "advise")
+  assert.equal(preCommitReview({ ...base, todoOpen: itemsFalsos(3) }).action, "advise")
 })
 
 test("'- [x]' staged → deny, y NO admite --no-verify", () => {
@@ -73,4 +73,56 @@ test("openItemTitles extrae el título en negrita", () => {
 
 test("un item sin negrita cae a la línea completa en vez de perderse", () => {
   assert.deepEqual(openItemTitles("- [ ] suelto sin formato"), ["- [ ] suelto sin formato"])
+})
+
+// ── tareas rezagadas: las abiertas que hablan del commit ────────────────────
+
+const itemsFalsos = (n: number): { title: string; text: string }[] =>
+  Array.from({ length: n }, (_, i) => ({ title: `T${i}`, text: `- [ ] **T${i}** — algo` }))
+
+test("una tarea abierta que menciona un archivo del staging se NOMBRA", () => {
+  const d = preCommitReview({
+    ...base,
+    staged: ["src/core/window.ts", "README.md"],
+    todoOpen: [
+      { title: "Ventana del guard mal calculada", text: "- [ ] **Ventana del guard mal calculada** — en window.ts el borde" },
+      { title: "Otra cosa", text: "- [ ] **Otra cosa** — nada que ver" },
+    ],
+  })
+  const message = d.action === "advise" ? d.message : ""
+  assert.match(message, /¿alguna quedó resuelta\?/)
+  assert.match(message, /Ventana del guard mal calculada {2}\(menciona window\.ts\)/)
+  assert.doesNotMatch(message, /Otra cosa/, "las que no mencionan nada no se listan")
+})
+
+test("sin coincidencias se reporta el total y se dice que ninguna matchea", () => {
+  const message = (() => {
+    const d = preCommitReview({ ...base, staged: ["src/otro.ts"], todoOpen: itemsFalsos(4) })
+    return d.action === "advise" ? d.message : ""
+  })()
+  assert.match(message, /4 items en TODO\.md \(ninguna menciona/)
+})
+
+test("los nombres de archivo demasiado comunes no relacionan nada", () => {
+  const message = (() => {
+    const d = preCommitReview({
+      ...base,
+      staged: ["package.json", "src/index.ts"],
+      todoOpen: [{ title: "Bump", text: "- [ ] **Bump** — tocar package.json y index.ts" }],
+    })
+    return d.action === "advise" ? d.message : ""
+  })()
+  assert.doesNotMatch(message, /¿alguna quedó resuelta\?/)
+})
+
+test("un archivo del propio .todo/ no relaciona: editarlo es la operación del plugin", () => {
+  const message = (() => {
+    const d = preCommitReview({
+      ...base,
+      staged: [".todo/TODO.md"],
+      todoOpen: [{ title: "Migrar TODO.md", text: "- [ ] **Migrar TODO.md** — mover a .todo/TODO.md" }],
+    })
+    return d.action === "advise" ? d.message : ""
+  })()
+  assert.doesNotMatch(message, /¿alguna quedó resuelta\?/)
 })

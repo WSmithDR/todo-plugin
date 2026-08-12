@@ -268,6 +268,12 @@ el slot lo ocupa otro.
 
 Editor-agnóstico — corre en cualquier CLI o editor. Se instala automáticamente via `SessionStart` en la primera sesión del proyecto. Bloquea `git commit` si hay tareas en DOING.md que podrían estar resueltas por los cambios en staging.
 
+**Nombra las tareas rezagadas.** De TODO.md no muestra un contador sino los items
+abiertos que **mencionan algún archivo del staging** (`itemsMentioning` en
+`core/todo-files.ts`, el mismo matcher que usa `editing-item`). Nadie compara 40
+items contra un diff; la tarea abierta cuyo arreglo ya está en el commit es
+justamente la que se rezaga para siempre.
+
 Corre **aunque no haya tareas abiertas**: si el commit resolvió algo que nunca fue
 tarea, la salida no es `--no-verify` sino crear la tarea y escribirla directo en
 DONE.md (edge case *Trabajo no contemplado* en `todo-done`). El `--no-verify` queda

@@ -75,6 +75,47 @@ export const discardedCount = (markdown: string): number =>
   markdown.split("\n").filter((line) => line.startsWith("- ~~")).length
 
 /**
+ * Nombres tan comunes que aparecer en un item no significa nada. Sin este
+ * filtro, cualquier tarea que mencione `index.ts` matchearía con cualquier
+ * index.ts del repo.
+ */
+const DEMASIADO_COMUNES = new Set([
+  "index.ts", "index.js", "index.tsx", "main.ts", "main.js", "mod.ts",
+  "types.ts", "utils.ts", "config.ts", "README.md", "package.json",
+])
+
+/** Un basename que sirve para relacionar: ni corto, ni de los que están en todos lados. */
+export function significantBasename(path: string): string | null {
+  if (path.includes(".todo/")) return null // el propio registro no cuenta
+  const basename = path.split(/[\\/]/).pop() ?? ""
+  if (basename.length < 5 || DEMASIADO_COMUNES.has(basename)) return null
+  return basename
+}
+
+/**
+ * Los items que mencionan alguno de estos archivos.
+ *
+ * Es la misma pregunta que se hace `editing-item` al verte editar un archivo y
+ * el pre-commit al ver qué hay en staging: "¿esta tarea habla de esto?". Vive
+ * acá para que las dos den la MISMA respuesta.
+ */
+export function itemsMentioning(items: OpenItem[], paths: string[]): { item: OpenItem; basename: string }[] {
+  const hits: { item: OpenItem; basename: string }[] = []
+
+  for (const path of paths) {
+    const basename = significantBasename(path)
+    if (basename === null) continue
+
+    for (const item of items) {
+      if (!item.text.includes(basename)) continue
+      if (hits.some((hit) => hit.item.title === item.title)) continue
+      hits.push({ item, basename })
+    }
+  }
+  return hits
+}
+
+/**
  * El item de DOING.md que lleva más tiempo en curso, según su `iniciado:`.
  *
  * Una tarea que arrancó hace semanas o está trabada o ya se hizo y nadie la
