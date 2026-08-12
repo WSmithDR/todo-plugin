@@ -137,7 +137,7 @@ parte del diseño como la de la izquierda.
 | `todo-triage` | Classify and prioritize existing items by quadrant | `stale-todo` (SessionStart: ≥12 items o >30 días sin revisar) |
 | `todo-doing` | Move an item from TODO to DOING | `branch-doing` (rama nueva) · `editing-item` (tocás un archivo que una tarea menciona) |
 | `todo-done` | Mark an item complete and move to DONE | `pre-commit` · `post-commit` · `session-close` |
-| `todo-item` | Alta completa de un item en un paso (add → solutions → recommend → clarify) | El usuario |
+| `todo-item` | Alta completa de un item en un paso (add → solutions → recommend → clarify) | `todo-add`, cuando el item nace flojo |
 | `todo-clarify` | Explicar términos técnicos en TODO/DOING | `todo-triage`, que ya leyó los dos archivos |
 | `todo-solutions` | Attach concrete solution options to a task | `todo-doing`, al empezar un item sin opciones |
 | `todo-recommend` | Elegir cuál de las opciones implementar | `todo-solutions`, y `todo-doing` con él |

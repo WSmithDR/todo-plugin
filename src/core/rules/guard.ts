@@ -6,7 +6,7 @@ const MARKED_CHECKBOX =
 
 const DIRECT_EDIT =
   "TODO-GUARD: edición directa de .todo/ bloqueada. Usá el skill correspondiente " +
-  "(todo-add / todo-doing / todo-done / todo-clarify / todo-solutions / todo-recommend / todo-triage / todo-audit), " +
+  "(todo-add / todo-item / todo-doing / todo-done / todo-clarify / todo-solutions / todo-recommend / todo-triage / todo-audit), " +
   "que abren la ventana de escritura automáticamente.\n" +
   "Para editar a mano hay que exportar TODO_GUARD=off en el shell que lanza el CLI, ANTES de arrancarlo. " +
   "Un prefijo por comando (TODO_GUARD=off cmd) no sirve: el hook corre en otro proceso y lee su propio entorno."

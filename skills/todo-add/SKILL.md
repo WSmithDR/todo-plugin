@@ -171,3 +171,9 @@ git commit -m "TODO: add [short title]"
 ```
 
 Confirm to the user: what was added, which quadrant and why, commit hash.
+
+### 8. Escalar a `todo-item` si el item nace flojo
+
+Si lo que se agregó es una sola cosa y el "cómo" no es obvio —el problema está claro pero hay más de un enfoque razonable, o la descripción quedó vaga porque falta entender el código—, ofrecé `todo-item`, que encadena solutions → recommend → clarify sobre lo recién agregado. Es el momento barato: el contexto de por qué se agregó todavía está fresco.
+
+No lo ofrezcas cuando entraron varios items de una (ahí primero va `todo-triage`), ni cuando el item es evidente de una línea.
