@@ -192,6 +192,14 @@ src/adapters/claude-code/hook.ts <modo>`.
 | `PostToolUse(Bash)` | `git switch` / `checkout -b` a rama de feature | `branch-doing`: recuerda mover la tarea a DOING.md | `advise` |
 | `PostToolUse(Edit/Write/MultiEdit)` | Editar un archivo que una tarea abierta menciona | `editing-item`: sugiere `todo-doing`. Sin `.todo/` local, las tareas salen del proyecto del store dueño del archivo editado | `advise` |
 | `SessionEnd` | Fin de sesión con commits | `session-close`: recuerda cerrar lo que quedó en DOING.md | `advise` |
+| `SessionEnd` | Fin de sesión en un proyecto sin repo | `storeSessionClose`: lo mismo, pero para los proyectos del store que **esta sesión tocó** | `advise` |
+
+**En los proyectos sin repo, "trabajaste acá" no lo dice git.** No hay commits
+tuyos, así que la señal es que una skill le escribió el `.todo/`: el guard la
+anota (`rememberTouched`) cuando deja pasar la escritura, y el cierre habla solo
+de esos. Sin ese marcador el aviso tendría que nombrar los seis proyectos,
+incluidos los que no abriste, que es la forma más rápida de volverlo invisible.
+La lista se limpia al arrancar cada sesión y el aviso la consume: sale una vez.
 
 Los tres `PostToolUse` corren en **un solo proceso** que mergea sus decisiones.
 

@@ -14,6 +14,17 @@ FAIL=0
 _pass() { echo "  PASS: $1"; PASS=$((PASS + 1)); }
 _fail() { echo "  FAIL: $1"; FAIL=$((FAIL + 1)); }
 
+# Estado y registro central AISLADOS, para toda la corrida.
+#
+# Sin esto, cualquier hook que corra en un directorio sin `.todo/` entra a la rama
+# del store y lee el registro REAL de quien esté corriendo los tests: le consume el
+# aviso del día y, si tuviera algo cerrado en años anteriores, le commitearía la
+# rotación. Ya pasó tres veces, siempre por olvidarse de un archivo.
+SANDBOX="$(mktemp -d)"
+export XDG_CACHE_HOME="$SANDBOX/cache"
+export XDG_DATA_HOME="$SANDBOX/data"
+trap 'rm -rf "$SANDBOX"' EXIT
+
 run_in_tmpdir() {
     local dir
     dir=$(mktemp -d)
@@ -53,7 +64,6 @@ _check "bin/run.sh ejecuta un .ts" "$?" "0"
 _check "pre: Edit fuera de .todo → 0" \
     "$(_hook pre-tool-use '{"tool_name":"Edit","tool_input":{"file_path":"/p/src/x.ts"}}')" "0"
 
-export XDG_CACHE_HOME="$(mktemp -d)"   # ventana cerrada, sin depender de la máquina
 _check "pre: Edit en .todo sin ventana → 2" \
     "$(_hook pre-tool-use '{"tool_name":"Edit","tool_input":{"file_path":"/p/.todo/TODO.md"}}')" "2"
 
@@ -65,7 +75,10 @@ esac
 bash "$REPO_ROOT/bin/todo-guard.sh" open
 _check "pre: con la ventana abierta → 0" \
     "$(_hook pre-tool-use '{"tool_name":"Edit","tool_input":{"file_path":"/p/.todo/TODO.md"}}')" "0"
-unset XDG_CACHE_HOME
+
+# La ventana queda abierta para el resto de la corrida; los casos que necesitan
+# verla cerrada la borran ellos.
+rm -f "$XDG_CACHE_HOME/todo-plugin/window"
 
 # Fail-open: si el adapter no entiende el payload, no bloquea
 _check "payload ilegible → 0 (fail-open)" "$(_hook pre-tool-use 'no soy json')" "0"

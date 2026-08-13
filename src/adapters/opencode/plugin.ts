@@ -1,6 +1,7 @@
 import { PLUGIN_ROOT } from "../../core/paths.ts"
 import { sessionSetup } from "../../core/rules/session-setup.ts"
 import { decideAfter, decideBefore, decideSessionClose } from "../../core/pipeline.ts"
+import { clearTouched } from "../../core/session-state.ts"
 import { injectConfig, type OpenCodeConfig } from "./config.ts"
 import { applyAfter, applyBefore, type AfterOutput } from "./emit.ts"
 import { buildInstructions } from "./instructions.ts"
@@ -36,6 +37,8 @@ import { toToolEvent } from "./normalize.ts"
  */
 
 export function createHooks(directory: string, root: string = PLUGIN_ROOT) {
+  // El factory corre una vez por sesión: es el equivalente de SessionStart.
+  clearTouched()
   const setup = sessionSetup({ cwd: directory, pluginRoot: root })
   const setupNotice = setup.action === "allow" ? null : setup.message
 
@@ -76,9 +79,9 @@ export function createHooks(directory: string, root: string = PLUGIN_ROOT) {
       if (instructions) output.system.push(instructions)
       if (setupNotice) output.system.push(setupNotice)
 
-      // perRequest: system.transform corre en cada request, así que el gate del
+      // per-request: system.transform corre en cada request, así que el gate del
       // reflog evita spawnear git cuando no se movió nada.
-      const cierre = decideSessionClose(directory, { perRequest: true })
+      const cierre = decideSessionClose(directory, "per-request")
       if (cierre.action !== "allow") output.system.push(cierre.message)
     },
   }

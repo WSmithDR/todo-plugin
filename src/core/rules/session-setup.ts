@@ -124,7 +124,7 @@ function storeSetup(ctx: SessionContext, today: Date): Decision {
     // Una vez por proyecto y por día: son varios proyectos y este aviso no
     // depende de nada que vos hagas, así que repetirlo en cada sesión es la
     // receta para que se vuelva invisible.
-    const fecha = today.toISOString().slice(0, 10)
+    const fecha = fechaLocal(today)
     if (!markAdvisedOnce(storeStateKey, `stale-${project.id}-${fecha}`, env)) continue
 
     pendientes.push(`  · ${project.name} — ${motivos.join(" · ")}`)
@@ -143,6 +143,18 @@ en otra cosa, no lo interrumpas: ofrecelo cuando termine.`,
 
 /** Dos semanas "en curso": o está trabada, o ya se hizo y nadie la movió. */
 const STUCK_DAYS = 14
+
+/**
+ * La fecha LOCAL, no `toISOString()`, que es UTC.
+ *
+ * El "una vez por día" del aviso se lleva por fecha. Con UTC, en GMT-5 el día
+ * cambiaba a las 19:00 y el mismo aviso volvía a salir a la tarde. Se vio en el
+ * archivo de estado: entradas del 13 escritas un 12 a las 19:00.
+ */
+function fechaLocal(date: Date): string {
+  const pad = (n: number): string => String(n).padStart(2, "0")
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
 
 /** El estado "ya avisé" del store se guarda bajo una clave fija, no por cwd. */
 const storeStateKey = "todo-store"

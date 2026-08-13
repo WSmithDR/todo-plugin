@@ -51,6 +51,28 @@ export const rememberStamp = (cwd: string, stamp: string, env?: Env): void =>
   write(keyFor("refstamp", cwd), stamp, env)
 
 /**
+ * Los proyectos del store que esta sesión tocó.
+ *
+ * En un repo, "trabajaste acá" lo dice git. En un proyecto sin repo no hay commits
+ * tuyos, así que la única señal es que una skill le escribió el `.todo/`. Sin esto,
+ * el aviso de fin de sesión tendría que hablar de los seis proyectos —incluidos los
+ * que no abriste—, que es la forma más rápida de volverlo invisible.
+ *
+ * La lista es por sesión: se limpia al arrancar.
+ */
+const TOUCHED = keyFor("touched", "todo-store")
+
+export function rememberTouched(projectDir: string, env?: Env): void {
+  const seen = read(TOUCHED, env).split("\n").filter(Boolean)
+  if (seen.includes(projectDir)) return
+  write(TOUCHED, [...seen, projectDir].slice(-20).join("\n"), env)
+}
+
+export const touchedProjects = (env?: Env): string[] => read(TOUCHED, env).split("\n").filter(Boolean)
+
+export const clearTouched = (env?: Env): void => write(TOUCHED, "", env)
+
+/**
  * ¿Ya avisamos esto acá? Marca y devuelve si era nuevo.
  *
  * Con esto un aviso sale UNA vez por item y por proyecto, en vez de en cada

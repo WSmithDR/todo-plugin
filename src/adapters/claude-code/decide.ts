@@ -1,6 +1,6 @@
 import { ALLOW, advise, mergeDecisions, type Decision } from "../../core/protocol.ts"
 import { sessionSetup } from "../../core/rules/session-setup.ts"
-import { rememberHead } from "../../core/session-state.ts"
+import { clearTouched, rememberHead } from "../../core/session-state.ts"
 import { currentHead } from "../../core/git.ts"
 import { hasTodoDir, storeAvailable } from "../../core/env.ts"
 import { decideAfter, decideBefore, decideSessionClose } from "../../core/pipeline.ts"
@@ -52,6 +52,9 @@ export function sessionStart(payload: ClaudePayload): Decision {
   // Se ancla el HEAD acá para que session-end pueda decir si hubo commits.
   const head = currentHead(cwd)
   if (head) rememberHead(cwd, head)
+
+  // Arranca una sesión: lo que se tocó en la anterior ya no cuenta.
+  clearTouched()
 
   // Las reglas duras van en cada sesión que tenga dónde aplicarlas. OpenCode las
   // recibe por su system prompt; acá SessionStart es el único canal equivalente.
