@@ -1,15 +1,12 @@
-import { ALLOW, mergeDecisions, type Decision } from "../../core/protocol.ts"
-import { guard } from "../../core/rules/guard.ts"
-import { errorTriage } from "../../core/rules/error-triage.ts"
-import { branchDoing } from "../../core/rules/branch-doing.ts"
+import { ALLOW, advise, mergeDecisions, type Decision } from "../../core/protocol.ts"
 import { sessionSetup } from "../../core/rules/session-setup.ts"
 import { sessionClose } from "../../core/rules/session-close.ts"
-import { editingItem } from "../../core/rules/editing-item.ts"
-import { isWindowOpen } from "../../core/window.ts"
-import { editingContext, openItemTitles, readTodoFile } from "../../core/todo-files.ts"
-import { lastSeenHead, markAdvisedOnce, rememberHead } from "../../core/session-state.ts"
-import { currentBranch, currentHead } from "../../core/git.ts"
-import { guardEnabled, hasTodoDir, storeAvailable } from "../../core/env.ts"
+import { openItemTitles, readTodoFile } from "../../core/todo-files.ts"
+import { lastSeenHead, rememberHead } from "../../core/session-state.ts"
+import { currentHead } from "../../core/git.ts"
+import { hasTodoDir, storeAvailable } from "../../core/env.ts"
+import { decideAfter, decideBefore } from "../../core/pipeline.ts"
+import { buildRules } from "./instructions.ts"
 import { parsePayload, toToolEvent, type ClaudePayload } from "./normalize.ts"
 
 /**
@@ -43,48 +40,26 @@ export function decide(raw: string, mode: Mode): Decision {
   }
 }
 
-export function preToolUse(payload: ClaudePayload): Decision {
-  const event = toToolEvent(payload, "before")
-  return guard(event, { windowOpen: isWindowOpen(), enabled: guardEnabled() })
-}
+export const preToolUse = (payload: ClaudePayload): Decision => decideBefore(toToolEvent(payload, "before"))
 
 /**
- * Las dos reglas de post corren en UN solo proceso y se mergean. Antes eran dos
+ * Las tres reglas de post corren en UN solo proceso y se mergean. Antes eran
  * entradas separadas en hooks.json, o sea dos spawns de bash + python3 por cada
  * comando que el modelo ejecutaba.
  */
-export function postToolUse(payload: ClaudePayload): Decision {
-  const event = toToolEvent(payload, "after")
-  const cwd = event.cwd
-  const todo = hasTodoDir(cwd)
-
-  // El store solo se consulta si el comando falló y no hay `.todo/` local: es la
-  // única combinación donde la respuesta cambia algo, y así no se paga un
-  // `git rev-parse` por cada comando que anda bien.
-  const storeMode = !todo && event.result?.ok === false && storeAvailable(cwd)
-  const editing = editingContext(cwd, event.paths)
-
-  return mergeDecisions([
-    errorTriage(event, { hasTodoDir: todo, storeMode }),
-    branchDoing(event, { hasTodoDir: todo, branch: todo ? currentBranch(cwd) : "" }),
-    editingItem(event, {
-      // El contexto sale del cwd o —sin `.todo/` local— del proyecto del store
-      // dueño del archivo editado. El "una vez por item" se ancla al mismo dir,
-      // así el aviso de un sitio no consume el cupo de otro.
-      hasTodoDir: editing !== null,
-      todo: editing?.todo ?? [],
-      doing: editing?.doing ?? [],
-      advisedOnce: (subject) => markAdvisedOnce(editing?.dir ?? cwd, subject),
-    }),
-  ])
-}
+export const postToolUse = (payload: ClaudePayload): Decision => decideAfter(toToolEvent(payload, "after"))
 
 export function sessionStart(payload: ClaudePayload): Decision {
   const cwd = payload.cwd ?? process.cwd()
   // Se ancla el HEAD acá para que session-end pueda decir si hubo commits.
   const head = currentHead(cwd)
   if (head) rememberHead(cwd, head)
-  return sessionSetup({ cwd })
+
+  // Las reglas duras van en cada sesión que tenga dónde aplicarlas. OpenCode las
+  // recibe por su system prompt; acá SessionStart es el único canal equivalente.
+  const rules = hasTodoDir(cwd) || storeAvailable(cwd) ? buildRules() : null
+
+  return mergeDecisions([sessionSetup({ cwd }), rules === null ? ALLOW : advise(rules)])
 }
 
 export function sessionEnd(payload: ClaudePayload): Decision {

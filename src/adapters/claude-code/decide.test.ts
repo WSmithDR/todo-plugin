@@ -75,8 +75,17 @@ test("session-start con .todo/ sin config → avisa", () => {
   })
 })
 
-test("session-start con config → allow (sin .git no hay hook que instalar)", () => {
-  withProject((cwd) => assert.equal(decide(payload({ cwd }), "session-start").action, "allow"), { config: true })
+test("session-start con config: nada que avisar del setup, solo las reglas", () => {
+  withProject(
+    (cwd) => {
+      const d = decide(payload({ cwd }), "session-start")
+      const message = d.action === "advise" ? d.message : ""
+      assert.doesNotMatch(message, /TODO-SETUP/, "sin .git no hay hook que instalar")
+      assert.doesNotMatch(message, /TODO-CONFIG-MISSING/, "ya tiene config")
+      assert.match(message, /Reglas duras/, "eso sí va en toda sesión con .todo/")
+    },
+    { config: true },
+  )
 })
 
 // ── post-tool-use ──────────────────────────────────────────────────────────
@@ -173,4 +182,27 @@ test("pre: la ventana NO autoriza un '- [x]'", () => {
     "pre-tool-use",
   )
   assert.equal(d.action, "deny")
+})
+
+test("session-start trae las reglas duras, sin el índice de skills", () => {
+  withProject((cwd) => {
+    const d = decide(payload({ cwd }), "session-start")
+    const message = d.action === "advise" ? d.message : ""
+    assert.match(message, /Reglas duras/)
+    assert.match(message, /va por `AskUserQuestion`/, "traducido al dialecto de este CLI")
+    assert.doesNotMatch(message, /- `todo-add` —/, "Claude Code ya descubre las skills solo")
+  })
+})
+
+test("sin .todo/ ni store no hay reglas que recordar", () => {
+  withProject(
+    (cwd) => assert.doesNotMatch(
+      (() => {
+        const d = decide(payload({ cwd }), "session-start")
+        return d.action === "advise" ? d.message : ""
+      })(),
+      /Reglas duras/,
+    ),
+    { todo: false },
+  )
 })

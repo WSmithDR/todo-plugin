@@ -1,17 +1,11 @@
 import { hasTodoDir as todoDirExists } from "../../core/env.ts"
-import { mergeDecisions } from "../../core/protocol.ts"
 import { PLUGIN_ROOT } from "../../core/paths.ts"
-import { guard } from "../../core/rules/guard.ts"
-import { errorTriage } from "../../core/rules/error-triage.ts"
-import { branchDoing } from "../../core/rules/branch-doing.ts"
 import { sessionSetup } from "../../core/rules/session-setup.ts"
-import { editingItem } from "../../core/rules/editing-item.ts"
 import { sessionClose } from "../../core/rules/session-close.ts"
-import { editingContext, openItemTitles, readTodoFile } from "../../core/todo-files.ts"
-import { lastSeenHead, lastSeenStamp, markAdvisedOnce, rememberHead, rememberStamp } from "../../core/session-state.ts"
-import { isWindowOpen } from "../../core/window.ts"
-import { currentBranch, currentHead, refLogStamp } from "../../core/git.ts"
-import { guardEnabled, storeAvailable } from "../../core/env.ts"
+import { openItemTitles, readTodoFile } from "../../core/todo-files.ts"
+import { decideAfter, decideBefore } from "../../core/pipeline.ts"
+import { lastSeenHead, lastSeenStamp, rememberHead, rememberStamp } from "../../core/session-state.ts"
+import { currentHead, refLogStamp } from "../../core/git.ts"
 import { injectConfig, type OpenCodeConfig } from "./config.ts"
 import { applyAfter, applyBefore, type AfterOutput } from "./emit.ts"
 import { buildInstructions } from "./instructions.ts"
@@ -100,8 +94,7 @@ export function createHooks(directory: string, root: string = PLUGIN_ROOT) {
       input: { tool: string },
       output: { args?: Record<string, unknown> },
     ): Promise<void> => {
-      const event = toToolEvent(input.tool, output.args ?? {}, directory, "before")
-      applyBefore(guard(event, { windowOpen: isWindowOpen(), enabled: guardEnabled() }))
+      applyBefore(decideBefore(toToolEvent(input.tool, output.args ?? {}, directory, "before")))
     },
 
     "tool.execute.after": async (
@@ -109,27 +102,7 @@ export function createHooks(directory: string, root: string = PLUGIN_ROOT) {
       output: AfterOutput,
     ): Promise<void> => {
       const event = toToolEvent(input.tool, input.args ?? {}, directory, "after", output)
-      const editing = editingContext(directory, event.paths)
-      applyAfter(
-        mergeDecisions([
-          errorTriage(event, {
-            hasTodoDir,
-            // Ver decide.ts: solo se consulta el store si el comando falló y no
-            // hay `.todo/` local.
-            storeMode: !hasTodoDir && event.result?.ok === false && storeAvailable(directory),
-          }),
-          branchDoing(event, { hasTodoDir, branch: hasTodoDir ? currentBranch(directory) : "" }),
-          editingItem(event, {
-            // Ver decide.ts: el contexto sale del cwd o del proyecto del store
-            // dueño del archivo editado.
-            hasTodoDir: editing !== null,
-            todo: editing?.todo ?? [],
-            doing: editing?.doing ?? [],
-            advisedOnce: (subject) => markAdvisedOnce(editing?.dir ?? directory, subject),
-          }),
-        ]),
-        output,
-      )
+      applyAfter(decideAfter(event), output)
     },
 
     "experimental.chat.system.transform": async (

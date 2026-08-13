@@ -69,7 +69,15 @@ Los cuatro comandos corren en CI.
 | `src/adapters/claude-code/` | `normalize` (payload → `ToolEvent`), `decide` (→ `Decision`), `emit` (→ exit code) |
 | `src/cli/` | Lo que invocan las skills y git: `todo-guard`, `todo-store`, `pre-commit` |
 
-`core/` no sabe qué CLI está corriendo: esa traducción es de `adapters/`.
+| `src/core/pipeline.ts` | Qué reglas corren en cada fase y con qué contexto. Los adapters lo llaman; ninguno lo reimplementa |
+| `src/core/instructions.ts` | Índice de skills + reglas duras para el system prompt. Cada adapter aporta su `Dialect` (cómo se carga una skill, cómo se llama su tool de preguntas) |
+
+`core/` no sabe qué CLI está corriendo: esa traducción es de `adapters/`. **Un
+adapter solo debería tener normalize + emit + su dialecto**; si te encontrás
+escribiendo la misma lógica en los dos, va a `core/`. Pasó dos veces: el cableado
+de las reglas (idéntico, con los comentarios copiados) y las instrucciones del
+system prompt, que vivían dentro del adapter de OpenCode por ser el único con
+canal.
 Ver `docs/superpowers/specs/2026-08-03-migracion-typescript-multi-cli-design.md`.
 
 **En Claude Code ya corre todo sobre TS.** OpenCode sigue con paridad parcial
