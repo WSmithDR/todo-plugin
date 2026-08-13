@@ -1,11 +1,9 @@
 import { ALLOW, advise, mergeDecisions, type Decision } from "../../core/protocol.ts"
 import { sessionSetup } from "../../core/rules/session-setup.ts"
-import { sessionClose } from "../../core/rules/session-close.ts"
-import { openItemTitles, readTodoFile } from "../../core/todo-files.ts"
-import { lastSeenHead, rememberHead } from "../../core/session-state.ts"
+import { rememberHead } from "../../core/session-state.ts"
 import { currentHead } from "../../core/git.ts"
 import { hasTodoDir, storeAvailable } from "../../core/env.ts"
-import { decideAfter, decideBefore } from "../../core/pipeline.ts"
+import { decideAfter, decideBefore, decideSessionClose } from "../../core/pipeline.ts"
 import { buildRules } from "./instructions.ts"
 import { parsePayload, toToolEvent, type ClaudePayload } from "./normalize.ts"
 
@@ -62,19 +60,5 @@ export function sessionStart(payload: ClaudePayload): Decision {
   return mergeDecisions([sessionSetup({ cwd }), rules === null ? ALLOW : advise(rules)])
 }
 
-export function sessionEnd(payload: ClaudePayload): Decision {
-  const cwd = payload.cwd ?? process.cwd()
-  const todo = hasTodoDir(cwd)
-  const head = currentHead(cwd)
-
-  const decision = sessionClose({
-    hasTodoDir: todo,
-    doing: todo ? openItemTitles(readTodoFile(cwd, "DOING.md")) : [],
-    headMoved: head !== "" && lastSeenHead(cwd) !== "" && lastSeenHead(cwd) !== head,
-  })
-
-  // Se re-ancla igual: si no, la próxima sesión compararía contra un HEAD viejo
-  // y avisaría por commits que ya se reportaron.
-  if (head) rememberHead(cwd, head)
-  return decision
-}
+export const sessionEnd = (payload: ClaudePayload): Decision =>
+  decideSessionClose(payload.cwd ?? process.cwd())

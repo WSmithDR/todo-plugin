@@ -1,11 +1,6 @@
-import { hasTodoDir as todoDirExists } from "../../core/env.ts"
 import { PLUGIN_ROOT } from "../../core/paths.ts"
 import { sessionSetup } from "../../core/rules/session-setup.ts"
-import { sessionClose } from "../../core/rules/session-close.ts"
-import { openItemTitles, readTodoFile } from "../../core/todo-files.ts"
-import { decideAfter, decideBefore } from "../../core/pipeline.ts"
-import { lastSeenHead, lastSeenStamp, rememberHead, rememberStamp } from "../../core/session-state.ts"
-import { currentHead, refLogStamp } from "../../core/git.ts"
+import { decideAfter, decideBefore, decideSessionClose } from "../../core/pipeline.ts"
 import { injectConfig, type OpenCodeConfig } from "./config.ts"
 import { applyAfter, applyBefore, type AfterOutput } from "./emit.ts"
 import { buildInstructions } from "./instructions.ts"
@@ -40,41 +35,9 @@ import { toToolEvent } from "./normalize.ts"
  * corre siempre, y el efecto (instalar el git hook) es idempotente.
  */
 
-/**
- * Devuelve el aviso de cierre si HEAD se movió desde la última vez, o null.
- *
- * Re-ancla el HEAD apenas mira: sin eso el mismo commit haría saltar el aviso en
- * todos los requests siguientes.
- */
-function checkSessionClose(directory: string, hasTodoDir: boolean): string | null {
-  if (!hasTodoDir) return null
-
-  // Gate barato: si el reflog no se movió, no hay commit nuevo y no hace falta
-  // spawnear git. Sin reflog el sello es "" y se cae al camino caro, que es el
-  // correcto siempre; lo que se pierde ahí es el ahorro, no la corrección.
-  const stamp = refLogStamp(directory)
-  if (stamp !== "" && stamp === lastSeenStamp(directory)) return null
-  if (stamp !== "") rememberStamp(directory, stamp)
-
-  const head = currentHead(directory)
-  if (!head) return null
-
-  const previo = lastSeenHead(directory)
-  rememberHead(directory, head)
-  if (previo === "") return null // primera vez: se ancla y ya
-
-  const decision = sessionClose({
-    hasTodoDir,
-    doing: openItemTitles(readTodoFile(directory, "DOING.md")),
-    headMoved: previo !== head,
-  })
-  return decision.action === "allow" ? null : decision.message
-}
-
 export function createHooks(directory: string, root: string = PLUGIN_ROOT) {
   const setup = sessionSetup({ cwd: directory, pluginRoot: root })
   const setupNotice = setup.action === "allow" ? null : setup.message
-  const hasTodoDir = todoDirExists(directory)
 
   return {
     "shell.env": async (_input: unknown, output: { env: Record<string, string> }): Promise<void> => {
@@ -113,8 +76,10 @@ export function createHooks(directory: string, root: string = PLUGIN_ROOT) {
       if (instructions) output.system.push(instructions)
       if (setupNotice) output.system.push(setupNotice)
 
-      const cierre = checkSessionClose(directory, hasTodoDir)
-      if (cierre) output.system.push(cierre)
+      // perRequest: system.transform corre en cada request, así que el gate del
+      // reflog evita spawnear git cuando no se movió nada.
+      const cierre = decideSessionClose(directory, { perRequest: true })
+      if (cierre.action !== "allow") output.system.push(cierre.message)
     },
   }
 }

@@ -215,6 +215,11 @@ nada más. Un aviso que se repite es ruido que el modelo aprende a saltear.
 | `tool.execute.after` | error-triage + branch-doing + editing-item. `advise` → anexa a `output.output` | `PostToolUse` |
 | `experimental.chat.system.transform` | Índice de skills + aviso de setup | `SessionStart` |
 
+`session-close` es la misma función para los dos (`decideSessionClose` en
+`core/pipeline.ts`); lo único que cambia es el flag `perRequest`, que activa el
+gate del reflog. No es cosmético: Claude Code la llama una vez, OpenCode en cada
+request.
+
 **`session-close` va por `system.transform`, no por un hook de fin de sesión.**
 OpenCode no tiene uno: de los ~31 eventos que declara su SDK, el más cercano es
 `session.idle`, que es fin de **turno** — el análogo de `Stop` de Claude Code, no

@@ -1,13 +1,14 @@
-import { mergeDecisions, type Decision, type ToolEvent } from "./protocol.ts"
+import { ALLOW, mergeDecisions, type Decision, type ToolEvent } from "./protocol.ts"
 import { guardEnabled, hasTodoDir, storeAvailable } from "./env.ts"
 import { isWindowOpen } from "./window.ts"
-import { currentBranch } from "./git.ts"
-import { editingContext } from "./todo-files.ts"
-import { markAdvisedOnce } from "./session-state.ts"
+import { currentBranch, currentHead, refLogStamp } from "./git.ts"
+import { editingContext, openItemTitles, readTodoFile } from "./todo-files.ts"
+import { lastSeenHead, lastSeenStamp, markAdvisedOnce, rememberHead, rememberStamp } from "./session-state.ts"
 import { guard } from "./rules/guard.ts"
 import { errorTriage } from "./rules/error-triage.ts"
 import { branchDoing } from "./rules/branch-doing.ts"
 import { editingItem } from "./rules/editing-item.ts"
+import { sessionClose } from "./rules/session-close.ts"
 
 /**
  * Qué reglas corren en cada fase y con qué contexto.
@@ -25,6 +26,41 @@ import { editingItem } from "./rules/editing-item.ts"
 
 export const decideBefore = (event: ToolEvent): Decision =>
   guard(event, { windowOpen: isWindowOpen(), enabled: guardEnabled() })
+
+/**
+ * El aviso de cierre, con el anclaje de HEAD que lo hace salir una vez por commit
+ * y no una vez por invocación.
+ *
+ * `perRequest` es la única diferencia real entre CLIs, y no es cosmética: Claude
+ * Code llama esto en `SessionEnd`, una vez; OpenCode no tiene ese evento y lo
+ * resuelve por `system.transform`, que corre en CADA request. Ahí el gate del
+ * reflog convierte el costo en un stat, y sin él serían dos procesos git por
+ * request. La decisión, en cambio, es la misma para todos.
+ */
+export function decideSessionClose(cwd: string, opts: { perRequest?: boolean } = {}): Decision {
+  if (!hasTodoDir(cwd)) return ALLOW
+
+  if (opts.perRequest === true) {
+    const stamp = refLogStamp(cwd)
+    if (stamp !== "" && stamp === lastSeenStamp(cwd)) return ALLOW
+    if (stamp !== "") rememberStamp(cwd, stamp)
+  }
+
+  const head = currentHead(cwd)
+  if (head === "") return ALLOW
+
+  // Se re-ancla siempre, aunque no se avise: si no, la próxima vez se compararía
+  // contra un HEAD viejo y el mismo commit avisaría de nuevo.
+  const previo = lastSeenHead(cwd)
+  rememberHead(cwd, head)
+
+  return sessionClose({
+    hasTodoDir: true,
+    doing: openItemTitles(readTodoFile(cwd, "DOING.md")),
+    // Sin un HEAD previo esto es el primer anclaje, no un commit nuevo.
+    headMoved: previo !== "" && previo !== head,
+  })
+}
 
 export function decideAfter(event: ToolEvent): Decision {
   const cwd = event.cwd
