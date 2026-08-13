@@ -16,4 +16,4 @@ if ((process.argv[2] ?? "check") === "open") {
   process.exit(0)
 }
 
-emit(decide(await readStdin(), "pre-tool-use"))
+emit(decide(await readStdin(), "pre-tool-use"), "pre-tool-use")

@@ -53,6 +53,9 @@ _hook() {  # _hook <modo> <payload-json>; imprime el exit code
 _hook_err() {  # _hook_err <modo> <payload-json>; imprime el stderr
     printf '%s' "$2" | bash "$RUN" "$HOOK" "$1" 2>&1 >/dev/null
 }
+_hook_out() {  # _hook_out <modo> <payload-json>; imprime el stdout
+    printf '%s' "$2" | bash "$RUN" "$HOOK" "$1" 2>/dev/null
+}
 
 _check() { [ "$2" = "$3" ] && _pass "$1" || _fail "$1 (esperaba $3, dio $2)"; }
 
@@ -86,11 +89,13 @@ _check "payload vacío → 0 (fail-open)"    "$(_hook pre-tool-use '')" "0"
 
 # session-start y post-tool-use, contra un proyecto real
 TMP_PROJ="$(mktemp -d)"; mkdir -p "$TMP_PROJ/.todo"
-_check "session-start: .todo sin config → 2" \
-    "$(_hook session-start "{\"cwd\":\"$TMP_PROJ\"}")" "2"
-case "$(_hook_err session-start "{\"cwd\":\"$TMP_PROJ\"}")" in
-    *TODO-CONFIG-MISSING*) _pass "session-start: pide todo-config" ;;
-    *) _fail "session-start: no pidió todo-config" ;;
+# SessionStart avisa por stdout con exit 0: es el único canal que llega al modelo.
+# Con exit 2 el texto sale como "hook error" y solo lo ve el usuario.
+_check "session-start: .todo sin config → 0" \
+    "$(_hook session-start "{\"cwd\":\"$TMP_PROJ\"}")" "0"
+case "$(_hook_out session-start "{\"cwd\":\"$TMP_PROJ\"}")" in
+    *TODO-CONFIG-MISSING*) _pass "session-start: pide todo-config por stdout" ;;
+    *) _fail "session-start: no pidió todo-config por stdout" ;;
 esac
 
 _check "post: comando ok → 0" \

@@ -19,4 +19,4 @@ if (!MODES.includes(mode as Mode)) {
   process.exit(1)
 }
 
-emit(decide(await readStdin(), mode as Mode))
+emit(decide(await readStdin(), mode as Mode), mode as Mode)
