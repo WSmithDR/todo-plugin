@@ -1,5 +1,8 @@
 # Feedbacks pendientes + Store central para repos — Plan de implementación
 
+> **ESTADO (2026-08-26): EJECUTADO.** Tasks 1-4 y 6 completas con revisión (commits 41f981f..7bf0727, v1.42.1).
+> Task 5 quedó parcial por decisión del usuario: la migración de cada repo es PEREZOSA — ocurre sola en el primer SessionStart de cada proyecto (`adoptPending`), no en masa. Pendiente manual: smoke test end-to-end en un repo ya migrado.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Aplicar los 4 feedbacks pendientes del store de evolución (`done-sin-iniciado-sin-semilla-de-dias`, `nonrepo-list-not-discoverable`, `pre-commit-advisory-obliga-no-verify-siempre`) e implementar el capability-gap `store-central-tambien-para-repos` con migración retroactiva de los `.todo/` locales existentes.
@@ -32,7 +35,7 @@
 - Consumes: formato de metadata que ya parsea bitácora: `responsable: <Nombre> · <ISO con hora>` (p.ej. `2026-08-13T17:54-05:00`).
 - Produces: `creado por: <Nombre> · <ISO con hora>` (todo-add / todo-item) y regla "siempre estampar `iniciado:`" (todo-done). Sin cambios de código ni de parsers.
 
-- [ ] **Step 1: Patch `skills/todo-add/SKILL.md`**
+- [x] **Step 1: Patch `skills/todo-add/SKILL.md`**
 
 En las dos ocurrencias del bloque sed (líneas ~72-78 y ~81-87), cambiar la variable de fecha por timestamp con hora y usarla en la metadata:
 
@@ -50,7 +53,7 @@ Y en el ejemplo de formato del final (~línea 172):
 - [ ] **[Short title]** — [One sentence: what breaks, when it breaks, what the user experiences.] _(creado por: GitName · 2026-08-25T10:30-05:00)_
 ```
 
-- [ ] **Step 2: Patch `skills/todo-item/SKILL.md`**
+- [x] **Step 2: Patch `skills/todo-item/SKILL.md`**
 
 Línea ~58, mismo cambio de formato:
 
@@ -58,7 +61,7 @@ Línea ~58, mismo cambio de formato:
 1. **`todo-add`** — write and insert the item in the correct section of `.todo/TODO.md`, including `_(creado por: GitName · YYYY-MM-DDTHH:MM±HH:MM)_` metadata
 ```
 
-- [ ] **Step 3: Patch `skills/todo-done/SKILL.md`**
+- [x] **Step 3: Patch `skills/todo-done/SKILL.md`**
 
 En el paso 5, reemplazar el bullet que hoy dice *"Si el ítem se cierra directo desde TODO.md … no agregues nada"* por:
 
@@ -72,7 +75,7 @@ Y actualizar el tercer ejemplo (~línea 162):
 - `_(creado por: SmithDR · 2026-05-20T09:00-05:00 | iniciado: 2026-05-20T09:00-05:00)_ ✓ _resuelto: según descripción del usuario — responsable: SmithDR · 2026-06-09T10:05-05:00_` _(cerrada directo de TODO: `iniciado` = timestamp de creación)_
 ```
 
-- [ ] **Step 4: Verificar**
+- [x] **Step 4: Verificar**
 
 ```bash
 grep -c "date -Iminutes" skills/todo-add/SKILL.md        # ≥ 2
@@ -80,14 +83,14 @@ grep -c "SIEMPRE" skills/todo-done/SKILL.md              # ≥ 1
 npx tsc --noEmit                                          # sin cambios, debe pasar
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add skills/
 git commit -m "docs(skills): creado por e iniciado siempre con hora — semilla de Días para bitacora"
 ```
 
-- [ ] **Step 6: Cerrar el feedback**
+- [x] **Step 6: Cerrar el feedback**
 
 Desde el repo de `cli-plugin-template`:
 
@@ -106,7 +109,7 @@ bin/cpt feedback apply todo-plugin done-sin-iniciado-sin-semilla-de-dias
 - Consumes: `bin/todo-store.sh {mode|list|create <name>|path <id>}` (interfaz estable de CLI, no tocar).
 - Produces: flujo documentado "crear/elegir proyecto sin repo" dentro de todo-config. El Task 4e agregará más opciones a este mismo archivo — aplicar este task primero.
 
-- [ ] **Step 1: Documentar el modelo de almacenamiento arriba del proceso**
+- [x] **Step 1: Documentar el modelo de almacenamiento arriba del proceso**
 
 Después del encabezado "# Todo Plugin — Config", insertar:
 
@@ -119,7 +122,7 @@ Después del encabezado "# Todo Plugin — Config", insertar:
   Para crear o elegir uno de estos proyectos, este mismo skill te lo ofrece en el paso 0b.
 ```
 
-- [ ] **Step 2: Reescribir el paso 0b**
+- [x] **Step 2: Reescribir el paso 0b**
 
 Reemplazar el paso `### 0b. Solo aplica en repos` completo por:
 
@@ -164,21 +167,21 @@ Confirmar al usuario con el id y la ruta impresa (ahí viven sus archivos).
 Mostrar el listado y terminar.
 ````
 
-- [ ] **Step 3: Verificar**
+- [x] **Step 3: Verificar**
 
 ```bash
 grep -c "create" skills/todo-config/SKILL.md   # ≥ 3
 grep -c "0b" skills/todo-config/SKILL.md       # ≥ 2
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add skills/todo-config/SKILL.md
 git commit -m "docs(todo-config): alta y descubrimiento de proyectos sin repo en el paso 0b"
 ```
 
-- [ ] **Step 5: Cerrar el feedback**
+- [x] **Step 5: Cerrar el feedback**
 
 ```bash
 cd /home/wagner/Documentos/dev-projects/personal_tools/cli-plugin-template
@@ -198,7 +201,7 @@ bin/cpt feedback apply todo-plugin nonrepo-list-not-discoverable
 - Consumes: nada nuevo.
 - Produces: `PreCommitInput` gana el campo `registeredWork: number` — cantidad de items `- [x]` o `- ~~` AGREGADOS a DONE.md/DISCARDED.md en este staging. Regla nueva: `registeredWork > 0 && markedCheckboxes === 0` → `ALLOW` (el trabajo ya quedó registrado; el commit pasa sin `--no-verify`).
 
-- [ ] **Step 1: Escribir los tests que fallan**
+- [x] **Step 1: Escribir los tests que fallan**
 
 Agregar a `src/core/rules/pre-commit.test.ts` (respetar los helpers existentes del archivo):
 
@@ -245,7 +248,7 @@ test("sin trabajo registrado ni checkboxes, sigue el advise de siempre", () => {
 })
 ```
 
-- [ ] **Step 2: Verificar que fallan**
+- [x] **Step 2: Verificar que fallan**
 
 ```bash
 node --test src/core/rules/pre-commit.test.ts
@@ -253,7 +256,7 @@ node --test src/core/rules/pre-commit.test.ts
 
 Expected: FAIL — `registeredWork` no existe en el tipo (y tsc lo marcaría).
 
-- [ ] **Step 3: Implementar la regla**
+- [x] **Step 3: Implementar la regla**
 
 En `src/core/rules/pre-commit.ts`:
 
@@ -274,7 +277,7 @@ Después del guard de `markedCheckboxes` y ANTES del `if (input.staged.length ==
 if (input.registeredWork > 0) return ALLOW
 ```
 
-- [ ] **Step 4: Cablear el CLI**
+- [x] **Step 4: Cablear el CLI**
 
 En `src/cli/pre-commit.ts`, agregar al objeto que se le pasa a `preCommitReview`:
 
@@ -284,7 +287,7 @@ registeredWork: lines(
 ).filter((line) => line.startsWith("+- [x]") || line.startsWith("+- ~~")).length,
 ```
 
-- [ ] **Step 5: Suite completa, los dos runtimes + typecheck**
+- [x] **Step 5: Suite completa, los dos runtimes + typecheck**
 
 ```bash
 node --test 'src/**/*.test.ts' && bun test src/ && npx tsc --noEmit
@@ -292,14 +295,14 @@ node --test 'src/**/*.test.ts' && bun test src/ && npx tsc --noEmit
 
 Expected: PASS en los tres.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/core/rules/pre-commit.ts src/cli/pre-commit.ts src/core/rules/pre-commit.test.ts
 git commit -m "fix(pre-commit): trabajo registrado en DONE/DISCARDED da allow — el gate deja de ser un peaje"
 ```
 
-- [ ] **Step 7: Cerrar el feedback**
+- [x] **Step 7: Cerrar el feedback**
 
 ```bash
 cd /home/wagner/Documentos/dev-projects/personal_tools/cli-plugin-template
@@ -317,7 +320,7 @@ bin/cpt feedback apply todo-plugin pre-commit-advisory-obliga-no-verify-sie
 **Interfaces:**
 - Produces: `centralRepos(opts?: StoreOptions): boolean` — lee `<base>/settings.json`, campo `central_repos` (default `false`). `mode()` devuelve `"nonrepo"` dentro de un repo git cuando está activa.
 
-- [ ] **Step 1: Tests que fallan**
+- [x] **Step 1: Tests que fallan**
 
 Agregar a `src/core/store.test.ts` (usa el helper `withStore` existente):
 
@@ -357,7 +360,7 @@ test("dentro del propio store siempre es nonrepo, con o sin la preferencia", () 
 })
 ```
 
-- [ ] **Step 2: Verificar fallo**
+- [x] **Step 2: Verificar fallo**
 
 ```bash
 node --test src/core/store.test.ts
@@ -365,7 +368,7 @@ node --test src/core/store.test.ts
 
 Expected: FAIL en el test de `central_repos`.
 
-- [ ] **Step 3: Implementar**
+- [x] **Step 3: Implementar**
 
 En `src/core/store.ts`, después de `storeBase`… mejor: junto al resto de funciones públicas, antes de `mode()`:
 
@@ -404,13 +407,13 @@ En `mode()`, tras el `try/catch` de `git rev-parse`, cambiar el retorno exitoso:
   }
 ```
 
-- [ ] **Step 4: Suite + typecheck, ambos runtimes**
+- [x] **Step 4: Suite + typecheck, ambos runtimes**
 
 ```bash
 node --test 'src/**/*.test.ts' && bun test src/ && npx tsc --noEmit
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/core/store.ts src/core/store.test.ts
@@ -432,7 +435,7 @@ git commit -m "feat(store): preferencia central_repos — mode reporta nonrepo d
   - `setOrigin(id: string, repoRoot: string, opts?): void` — escribe `"origin"` en el config del proyecto y commitea el store.
   - `resolveProjectDir(cwd: string, env?: Env): string | null` — el directorio PROYECTO (que contiene `.todo/`) donde están las tareas de este cwd: local si existe `<cwd>/.todo`, sino el del proyecto con `origin` == repoRoot de cwd. `null` si no hay ninguno. Este es el ÚNICO punto de resolución para consumidores (hooks, pipeline, editingContext).
 
-- [ ] **Step 1: Tests que fallan**
+- [x] **Step 1: Tests que fallan**
 
 ```typescript
 import { projectForRepo, resolveProjectDir, setOrigin } from "./store.ts"
@@ -476,13 +479,13 @@ test("resolveProjectDir sin repo ni .todo → null", () => {
 
 Nota: ajustar el import superior del test para incluir las nuevas funciones.
 
-- [ ] **Step 2: Verificar fallo**
+- [x] **Step 2: Verificar fallo**
 
 ```bash
 node --test src/core/store.test.ts
 ```
 
-- [ ] **Step 3: Implementar en `src/core/store.ts`**
+- [x] **Step 3: Implementar en `src/core/store.ts`**
 
 Helper de repoRoot (junto a `physical`):
 
@@ -558,13 +561,13 @@ export function resolveProjectDir(cwd: string, env?: Env): string | null {
 
 Importar `basename` de `node:path` en el encabezado del archivo.
 
-- [ ] **Step 4: Suite + typecheck, ambos runtimes**
+- [x] **Step 4: Suite + typecheck, ambos runtimes**
 
 ```bash
 node --test 'src/**/*.test.ts' && bun test src/ && npx tsc --noEmit
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/core/store.ts src/core/store.test.ts
@@ -584,7 +587,7 @@ git commit -m "feat(store): origin por proyecto + resolveProjectDir — resoluci
 - Consumes: `create`, `setOrigin`, `readOrigin`/`list` (Tasks previos).
 - Produces: `adopt(repoPath: string, name: string | undefined, opts?): { id: string; dir: string }` y `todo-store adopt [<ruta>] [<nombre>]` — imprime el id. Mueve TODO/DOING/DONE/DISCARDED (+ archivos `-<año>.md`) de `<repo>/.todo/` a `<base>/<id>/.todo/`, registra `origin`, commitea el store y BORRA el `.todo/` local.
 
-- [ ] **Step 1: Test que falla**
+- [x] **Step 1: Test que falla**
 
 ```typescript
 import { adopt } from "./store.ts"
@@ -611,13 +614,13 @@ test("adopt muda el .todo local al store, registra origin y borra el local", () 
 
 (El tmpdir de `withRepo` termina en algo como `todo-repo-XXX`; el basename será `todo-repo-XXX` — el assert del nombre puede relajarse a `typeof name === "string"` según cómo quede el helper; lo importante es el id estable.)
 
-- [ ] **Step 2: Verificar fallo**
+- [x] **Step 2: Verificar fallo**
 
 ```bash
 node --test src/core/store.test.ts
 ```
 
-- [ ] **Step 3: Implementar en `src/core/store.ts`**
+- [x] **Step 3: Implementar en `src/core/store.ts`**
 
 ```typescript
 /**
@@ -658,7 +661,7 @@ export function adopt(repoPath: string, name: string | undefined, opts: StoreOpt
 
 Importar `cpSync` de `node:fs` y `basename` de `node:path`.
 
-- [ ] **Step 4: Cablear el CLI**
+- [x] **Step 4: Cablear el CLI**
 
 En `src/cli/todo-store.ts`:
 
@@ -679,13 +682,13 @@ y en el switch, antes de `default`:
 
 Actualizar la línea de uso: `uso: todo-store {mode|list|create <name>|path <id>|adopt [<ruta>] [<nombre>]}`.
 
-- [ ] **Step 5: Suite + typecheck, ambos runtimes**
+- [x] **Step 5: Suite + typecheck, ambos runtimes**
 
 ```bash
 node --test 'src/**/*.test.ts' && bun test src/ && npx tsc --noEmit
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/core/store.ts src/cli/todo-store.ts src/core/store.test.ts
@@ -707,7 +710,7 @@ git commit -m "feat(store): adopt — mudanza retroactiva del .todo local al sto
 - Consumes: `resolveProjectDir` (Task 4b).
 - Produces: todos los consumidores preguntan "¿dónde están las tareas?" por `resolveProjectDir(cwd)` en vez de `existsSync(cwd/.todo)`.
 
-- [ ] **Step 1: `src/cli/pre-commit.ts`**
+- [x] **Step 1: `src/cli/pre-commit.ts`**
 
 Reemplazar `hasTodoDir: existsSync(join(cwd, ".todo"))` y las lecturas:
 
@@ -729,7 +732,7 @@ const decision = preCommitReview({
 
 (importar `readTodoFile` desde `../core/todo-files.ts`; `read()` local puede eliminarse si queda sin usos.)
 
-- [ ] **Step 2: `src/cli/post-commit.ts`**
+- [x] **Step 2: `src/cli/post-commit.ts`**
 
 Mismo patrón para `hasTodoDir`, y el rango retroactivo se apaga en repos centralizados (el historial de DONE.md ya no vive en el repo):
 
@@ -750,7 +753,7 @@ if (centralized) range.length = 0
 
 y pasar `unregistered: git(...range.length === 0 ? [] : ["--oneline", ...])` — mantener el contrato exacto de `postCommitReview` que el archivo ya usa; solo cambia de dónde sale `lastRegistered`.
 
-- [ ] **Step 3: `src/core/pipeline.ts` — `decideSessionClose` y `decideAfter`**
+- [x] **Step 3: `src/core/pipeline.ts` — `decideSessionClose` y `decideAfter`**
 
 ```typescript
 import { projectForPath, resolveProjectDir } from "./store.ts"
@@ -782,7 +785,7 @@ En `decideAfter`, línea 124:
 
 Nota deliberada: `storeAvailable` y el gate de `storeSetup` NO se tocan — con `central_repos` activa, `mode()` ya devuelve `nonrepo` dentro de los repos, así que heredan el comportamiento gratis.
 
-- [ ] **Step 4: `src/core/todo-files.ts` — `editingContext`**
+- [x] **Step 4: `src/core/todo-files.ts` — `editingContext`**
 
 La primera rama de resolución pasa por la función única:
 
@@ -802,7 +805,7 @@ import { projectForPath, resolveProjectDir } from "./store.ts"
   })()
 ```
 
-- [ ] **Step 5: Suite + typecheck, ambos runtimes**
+- [x] **Step 5: Suite + typecheck, ambos runtimes**
 
 ```bash
 node --test 'src/**/*.test.ts' && bun test src/ && npx tsc --noEmit
@@ -810,7 +813,7 @@ node --test 'src/**/*.test.ts' && bun test src/ && npx tsc --noEmit
 
 Si algún test de pipeline construía fixtures asumiendo `.todo` local, corregir el fixture — nunca la aserción.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/cli/pre-commit.ts src/cli/post-commit.ts src/core/pipeline.ts src/core/todo-files.ts
@@ -829,7 +832,7 @@ git commit -m "refactor(core): todos los consumidores resuelven tareas vía reso
 - Consumes: `centralRepos`, `adopt` (Tasks 4a/4c), el paso 0b reescrito en Task 2.
 - Produces: el flujo por el cual el usuario activa `central_repos` y migra sus repos.
 
-- [ ] **Step 1: Paso 0b de todo-config — opción de centralizar**
+- [x] **Step 1: Paso 0b de todo-config — opción de centralizar**
 
 Dentro del bloque `MODE` del paso 0b (versión del Task 2), agregar ANTES de la pregunta del menú:
 
@@ -879,7 +882,7 @@ EOF
 Informar el `<id>` y la ruta del store impresos. Aclarar que el `.todo/` local fue movido (borrado del repo) y que los cambios del store quedaron commiteados ahí.
 ````
 
-- [ ] **Step 2: CLAUDE.md — actualizar el modelo de almacenamiento**
+- [x] **Step 2: CLAUDE.md — actualizar el modelo de almacenamiento**
 
 En la sección "**Proyectos sin repositorio git**" de CLAUDE.md, agregar después del párrafo existente:
 
@@ -898,21 +901,21 @@ tiene historial en el repo); la marca del pre-commit sigue delatando el commit
 forzado.
 ```
 
-- [ ] **Step 3: Verificar drift de manifiestos y suite**
+- [x] **Step 3: Verificar drift de manifiestos y suite**
 
 ```bash
 python3 bin/dev/generate-cli-configs.py --check
 node --test 'src/**/*.test.ts'
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add skills/todo-config/SKILL.md CLAUDE.md
 git commit -m "docs: superficie de usuario para central_repos + adopt"
 ```
 
-- [ ] **Step 5: Cerrar el feedback**
+- [x] **Step 5: Cerrar el feedback**
 
 ```bash
 cd /home/wagner/Documentos/dev-projects/personal_tools/cli-plugin-template
@@ -923,9 +926,11 @@ bin/cpt feedback apply todo-plugin store-central-tambien-para-repos
 
 ### Task 5: Migración retroactiva de los repos existentes + verificación end-to-end
 
+> **Decisión del usuario (2026-08-26):** nada de migración en masa. Con `central_repos: true` ya activo, cada repo transiciona SOLO en su primer SessionStart (`adoptPending`, commit 537ef0f). Los Steps 3-4 quedan como verificación pendiente para la próxima sesión en un repo migrado.
+
 **Files:** ninguno en el repo — operación sobre los proyectos del usuario. Requiere el plugin actualizado en los CLIs (`claude plugin update` / reinstalar en OpenCode) para que `bin/` ejecute el código nuevo.
 
-- [ ] **Step 1: Publicar y actualizar**
+- [x] **Step 1: Publicar y actualizar**
 
 ```bash
 # en el repo del plugin: push (la versión ya se bumpeó sola por feat:)
@@ -934,7 +939,7 @@ git push
 claude plugin update todo-plugin@todo-plugin
 ```
 
-- [ ] **Step 2: Inventariar repos con `.todo/` local**
+- [x] **Step 2: Inventariar repos con `.todo/` local**
 
 ```bash
 for d in ~/Documentos/dev-projects/*/*; do
@@ -962,7 +967,7 @@ Verificar por cada uno: `ls "<repo>/.todo"` falla (fue borrado) y `todo-store.sh
 3. Hacer un commit trivial → el pre-commit debe correr y, si hay trabajo registrado, dar allow.
 4. Editar un archivo mencionado por una tarea → `editing-item` debe avisar.
 
-- [ ] **Step 5: Registro**
+- [x] **Step 5: Registro**
 
 Guardar con `engram_mem_save` (type: architecture, topic_key `todo-plugin/store-central`) el modelo nuevo: settings.json, origin, adopt, techos conocidos.
 
@@ -989,7 +994,7 @@ Guardar con `engram_mem_save` (type: architecture, topic_key `todo-plugin/store-
   - `readLastCommit(id, opts?): string` — "" si no está.
   - Reusa `projectForPath`, `projectForRepo`, `currentHead`; expone `repoRootOf(path)` (hoy privado).
 
-- [ ] **Step 1: Tests que fallan**
+- [x] **Step 1: Tests que fallan**
 
 ```typescript
 // store.test.ts
@@ -1016,9 +1021,9 @@ test("una registración centralizada avanza last_commit del proyecto", () => {
 })
 ```
 
-- [ ] **Step 2: Verificar fallo** — `node --test src/core/store.test.ts src/core/pipeline.test.ts`
+- [x] **Step 2: Verificar fallo** — `node --test src/core/store.test.ts src/core/pipeline.test.ts`
 
-- [ ] **Step 3: Implementar en `src/core/store.ts`**
+- [x] **Step 3: Implementar en `src/core/store.ts`**
 
 ```typescript
 /** El HEAD del repo hasta donde están registradas las tareas. Universal:
@@ -1052,7 +1057,7 @@ export function readLastCommit(id: string, opts: StoreOptions = {}): string {
 
 Y exponer el helper privado como `export function repoRootOf(path: string): string { return repoRoot(path) }`.
 
-- [ ] **Step 4: Estampar en `decideBefore` (`src/core/pipeline.ts`)**
+- [x] **Step 4: Estampar en `decideBefore` (`src/core/pipeline.ts`)**
 
 Dentro del bloque `if (decision.action === "allow")` que ya recorre `event.paths`:
 
@@ -1074,7 +1079,7 @@ for (const path of event.paths) {
 }
 ```
 
-- [ ] **Step 5: Leer en el post-commit centralizado (`src/cli/post-commit.ts`)**
+- [x] **Step 5: Leer en el post-commit centralizado (`src/cli/post-commit.ts`)**
 
 Reemplazar el techo actual (`centralized ? "" : git log ...`) por:
 
@@ -1091,11 +1096,11 @@ const range = lastRegistered === "" ? ["-20"] : [`${lastRegistered}..HEAD`]
 
 Sin `last_commit` todavía (proyecto recién adoptado), cae a `-20`: la lista amplia de siempre hasta la primera registración. Actualizar el comentario ponytail — el techo desapareció.
 
-- [ ] **Step 6: Suite completa + typecheck, ambos runtimes** — `node --test 'src/**/*.test.ts' && bun test src/ && npx tsc --noEmit`
+- [x] **Step 6: Suite completa + typecheck, ambos runtimes** — `node --test 'src/**/*.test.ts' && bun test src/ && npx tsc --noEmit`
 
-- [ ] **Step 7: Commit** — `feat(post-commit): last_commit resucita la lista retroactiva en repos centralizados`
+- [x] **Step 7: Commit** — `feat(post-commit): last_commit resucita la lista retroactiva en repos centralizados`
 
-- [ ] **Step 8: CLAUDE.md** — borrar el techo documentado del párrafo de centralización y reemplazarlo por una línea sobre last_commit.
+- [x] **Step 8: CLAUDE.md** — borrar el techo documentado del párrafo de centralización y reemplazarlo por una línea sobre last_commit.
 
 ## Self-review
 
