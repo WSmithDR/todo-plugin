@@ -339,9 +339,26 @@ export function adopt(repoPath: string, name: string | undefined, opts: StoreOpt
     const mudados: string[] = []
     for (const file of readdirSync(local)) {
       if (!/^((TODO|DOING|DONE|DISCARDED)(-[0-9]{4})?\.md)$/.test(file)) continue
-      cpSync(join(local, file), join(dir, ".todo", file))
+      const destino = join(dir, ".todo", file)
+      // El store puede estar MÁS ACTUALIZADO que el snapshot local (p.ej. un
+      // .todo restaurado a mano desde git): gana la fecha de actualización más
+      // nueva, no el orden de la copia.
+      if (
+        existsSync(destino) &&
+        fechaActualizacion(readFileSync(destino, "utf8")) >= fechaActualizacion(readFileSync(join(local, file), "utf8"))
+      )
+        continue
+      cpSync(join(local, file), destino)
+      rmSync(join(local, file))
       mudados.push(join(id, ".todo", file))
     }
+    // config.json es metadata del régimen local: si queda, el .todo/ sobrevive
+    // vacío y resolveProjectDir seguiría creyendo que las tareas viven acá.
+    rmSync(join(local, "config.json"), { force: true })
+    // El directorio queda si tenía algo más (config custom, etc.) — eso se deja
+    // atrás a propósito. Si quedó vacío, fuera:
+    if (readdirSync(local).length === 0) rmdirSync(local)
+
     try {
       if (mudados.length > 0) {
         execFileSync("git", ["-C", storeBase(opts.env), "add", ...mudados], QUIET)
@@ -350,17 +367,6 @@ export function adopt(repoPath: string, name: string | undefined, opts: StoreOpt
     } catch {
       // Sin identidad git en el store el dato ya quedó en disco.
     }
-    for (const file of readdirSync(local)) {
-      if (!/^((TODO|DOING|DONE|DISCARDED)(-[0-9]{4})?\.md)$/.test(file)) continue
-      cpSync(join(local, file), join(dir, ".todo", file))
-      rmSync(join(local, file))
-    }
-    // config.json es metadata del régimen local: si queda, el .todo/ sobrevive
-    // vacío y resolveProjectDir seguiría creyendo que las tareas viven acá.
-    rmSync(join(local, "config.json"), { force: true })
-    // El directorio queda si tenía algo más (config custom, etc.) — eso se deja
-    // atrás a propósito. Si quedó vacío, fuera:
-    if (readdirSync(local).length === 0) rmdirSync(local)
   }
 
   setOrigin(id, root, opts)
@@ -487,4 +493,9 @@ export function repoRootOf(path: string): string {
 /** El repo de ESTA máquina que alimenta el proyecto (config.local.json), o "". */
 export function originRepoPath(id: string, opts: StoreOptions = {}): string {
   return readOrigin(id, opts).path
+}
+
+/** La fecha del encabezado `_Última actualización/revisión: YYYY-MM-DD_`, o "" (la más vieja). */
+function fechaActualizacion(markdown: string): string {
+  return markdown.match(/[UÚ]ltima (?:actualizaci[oó]n|revisi[oó]n):\s*(\d{4}-\d{2}-\d{2})/)?.[1] ?? ""
 }

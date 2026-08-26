@@ -396,3 +396,42 @@ test("setLastCommit escribe y lee en el config universal", () => {
     assert.equal(execFileSync("git", ["-C", base, "rev-parse", "HEAD"], { encoding: "utf8" }), antes)
   })
 })
+
+// ── adopt no pisa contenido más nuevo del store ─────────────────────────────
+
+test("adopt: el .todo local más VIEJO no pisa el del store más nuevo", () => {
+  withRepo((env, base, repo) => {
+    mkdirSync(base, { recursive: true })
+    writeFileSync(join(base, "settings.json"), JSON.stringify({ central_repos: true }))
+    const id = create("Con Historia", { env })
+    setOrigin(id, repo, { env }) // proyecto YA ADOPTADO antes
+    const dir = join(base, id)
+    // store: versión NUEVA
+    writeFileSync(
+      join(dir, ".todo", "TODO.md"),
+      "# TODOs\n\n_Última revisión: 2026-08-25_\n\n- [ ] **Item nuevo del store**\n",
+    )
+    // repo: snapshot VIEJO restaurado
+    mkdirSync(join(repo, ".todo"))
+    writeFileSync(
+      join(repo, ".todo", "TODO.md"),
+      "# TODOs\n\n_Última revisión: 2026-08-17_\n\n- [ ] **Item viejo del snapshot**\n",
+    )
+
+    adopt(repo, undefined, { env })
+
+    const final = readFileSync(join(dir, ".todo", "TODO.md"), "utf8")
+    assert.match(final, /Item nuevo del store/)
+    assert.doesNotMatch(final, /Item viejo del snapshot/)
+
+    // pero si el local es MÁS NUEVO, sí gana (migración normal)
+    rmSync(join(repo, ".todo"), { recursive: true, force: true })
+    mkdirSync(join(repo, ".todo"))
+    writeFileSync(
+      join(repo, ".todo", "DONE.md"),
+      "# Completados\n\n_Última actualización: 2026-08-26_\n\n- [x] **Cierre de hoy**\n",
+    )
+    adopt(repo, undefined, { env })
+    assert.match(readFileSync(join(dir, ".todo", "DONE.md"), "utf8"), /Cierre de hoy/)
+  })
+})
