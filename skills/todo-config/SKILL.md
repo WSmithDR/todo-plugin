@@ -7,6 +7,13 @@ description: "Configures todo-plugin settings for the current project. Asks inte
 
 Manages per-project plugin settings. Config file: `.todo/config.json`.
 
+## Dónde viven tus tareas
+
+- **En un repo git**: `.todo/` local, junto al código.
+- **Fuera de un repo** (sitios operados por MCP, notas personales): registro central en
+  `~/.local/share/todo/<proyecto>/.todo/` — un único repo git versionado solo.
+  Para crear o elegir uno de estos proyectos, este mismo skill te lo ofrece en el paso 0b.
+
 ## Config schema
 
 ```json
@@ -29,17 +36,44 @@ Antes de cualquier otra cosa (incluida la resolución de proyecto, que puede cre
 
 Esto autoriza las escrituras a `.todo/` que hará este skill. El hook `todo-guard` bloquea cualquier edición de `.todo/` que no venga precedida de esta apertura.
 
-### 0b. Solo aplica en repos
+### 0b. Resolver modo: repo vs store central
 
 ```bash
 MODE=$("${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" mode)
 echo "$MODE"
 ```
 
-Si `MODE` es `nonrepo`, esta configuración no aplica: la única opción
-(`gitignore_todo`) es irrelevante para un store privado, y `todo-store.sh create`
-ya siembra un `config.json` válido. Informar al usuario que en proyectos sin repo
-no hay nada que configurar y terminar sin cambios.
+**Si `MODE` es `repo`**: continuar en el paso 1 — la configuración es por proyecto y vive en `.todo/config.json` local.
+
+**Si `MODE` es `nonrepo`**: `gitignore_todo` no aplica (el store es privado y ya nace con config válido), pero acá se dan de alta los proyectos sin repo. Preguntar con `AskUserQuestion`:
+
+```
+question: "¿Qué querés hacer con el registro central?"
+header: "Store central"
+options:
+  - label: "Crear un proyecto nuevo"
+    description: "Da de alta una lista de tareas sin repo (p.ej. una lista personal)."
+  - label: "Ver los proyectos existentes"
+    description: "Lista id + nombre y la ruta de cada uno."
+  - label: "Nada — salir"
+```
+
+- **Crear**: pedir el nombre, luego:
+
+```bash
+ID=$("${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" create "<nombre>")
+"${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" path "$ID"
+```
+
+Confirmar al usuario con el id y la ruta impresa (ahí viven sus archivos).
+
+- **Ver existentes**:
+
+```bash
+"${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" list
+```
+
+Mostrar el listado y terminar.
 
 ### 1. Read existing config
 
