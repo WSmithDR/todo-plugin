@@ -126,10 +126,11 @@ queda amarrado a UN proyecto vía el campo `"origin"` de su `config.json`
 (`projectForRepo`). La mudanza es `todo-store.sh adopt [<ruta>]`: mueve el
 `.todo/` local al store, registra el origen y borra el local — idempotente por
 repo. Mientras exista `.todo/` local, gana el local: la migración es reversible
-volviendo a crear el directorio. Techo conocido: en repos centralizados, el
-post-commit pierde la lista retroactiva de commits sin registrar (DONE.md ya no
-tiene historial en el repo); la marca del pre-commit sigue delatando el commit
-forzado.
+volviendo a crear el directorio. El punto de registro entre
+máquinas es `last_commit` en el config del proyecto: avanza solo cuando una
+skill registra trabajo real (DONE/DISCARDED) desde ese repo, y el post-commit
+centralizado lo usa para la lista retroactiva — un commit forzado con
+--no-verify queda reclamado hasta que alguien cierre la tarea.
 
 **SessionStart también los cubre** (`storeSetup` en `session-setup.ts`): sin la
 preferencia, solo **fuera de un repo**; con `central_repos` activa, también dentro
