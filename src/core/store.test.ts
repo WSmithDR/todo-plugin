@@ -84,6 +84,41 @@ test("un dir suelto sin git es nonrepo", () => {
   })
 })
 
+// ── central_repos: los repos también salen del store ────────────────────────
+
+function withRepo<T>(fn: (env: Record<string, string>, base: string, repo: string) => T): T {
+  return withStore((env, base) => {
+    const repo = mkdtempSync(join(tmpdir(), "todo-repo-"))
+    execFileSync("git", ["-C", repo, "init", "-q"])
+    try {
+      return fn(env, base, repo)
+    } finally {
+      rmSync(repo, { recursive: true, force: true })
+    }
+  })
+}
+
+test("por defecto un repo sigue siendo repo", () => {
+  withRepo((env, _base, repo) => {
+    assert.equal(mode(repo, { env }), "repo")
+  })
+})
+
+test("central_repos: un repo reporta nonrepo", () => {
+  withRepo((env, base, repo) => {
+    mkdirSync(base, { recursive: true })
+    writeFileSync(join(base, "settings.json"), JSON.stringify({ central_repos: true }))
+    assert.equal(mode(repo, { env }), "nonrepo")
+  })
+})
+
+test("dentro del propio store siempre es nonrepo, con o sin la preferencia", () => {
+  withStore((env, base) => {
+    create("algo", { env })
+    assert.equal(mode(join(base, "algo"), { env }), "nonrepo")
+  })
+})
+
 // ── create ─────────────────────────────────────────────────────────────────
 
 test("create registra el proyecto y lo commitea", () => {

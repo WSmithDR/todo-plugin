@@ -40,6 +40,22 @@ function physical(path: string): string {
  * lógico: con un symlink en HOME o en XDG_DATA_HOME un directorio del propio
  * store se clasificaba como `repo` y el plugin escribía en el lugar equivocado.
  */
+/**
+ * Preferencia global del store: ¿los proyectos CON repo también centralizan su
+ * .todo acá? Vive en <base>/settings.json — fuera de los config.json por
+ * proyecto, porque es una decisión del usuario, no de cada proyecto.
+ */
+export function centralRepos(opts: StoreOptions = {}): boolean {
+  try {
+    const raw = JSON.parse(readFileSync(join(storeBase(opts.env), "settings.json"), "utf8")) as {
+      central_repos?: boolean
+    }
+    return raw.central_repos === true
+  } catch {
+    return false
+  }
+}
+
 export function mode(cwd: string, opts: StoreOptions = {}): Mode {
   const base = physical(storeBase(opts.env))
   const here = physical(cwd)
@@ -50,7 +66,10 @@ export function mode(cwd: string, opts: StoreOptions = {}): Mode {
       cwd: here,
       stdio: "ignore",
     })
-    return "repo"
+    // Con la preferencia activa, los repos también operan sobre el store: las
+    // skills ya saben resolver nonrepo con menú de proyectos, así que se reutiliza
+    // ese flujo tal cual.
+    return centralRepos(opts) ? "nonrepo" : "repo"
   } catch {
     return "nonrepo"
   }
