@@ -256,9 +256,19 @@ export function adopt(repoPath: string, name: string | undefined, opts: StoreOpt
 
   const local = join(root, ".todo")
   if (existsSync(local)) {
+    const mudados: string[] = []
     for (const file of readdirSync(local)) {
       if (!/^((TODO|DOING|DONE|DISCARDED)(-[0-9]{4})?\.md)$/.test(file)) continue
       cpSync(join(local, file), join(dir, ".todo", file))
+      mudados.push(join(id, ".todo", file))
+    }
+    try {
+      if (mudados.length > 0) {
+        execFileSync("git", ["-C", storeBase(opts.env), "add", ...mudados], QUIET)
+        execFileSync("git", ["-C", storeBase(opts.env), "commit", "-q", "-m", `todo: migrar ${id} desde ${basename(root)}`], QUIET)
+      }
+    } catch {
+      // Sin identidad git en el store el dato ya quedó en disco.
     }
     rmSync(local, { recursive: true, force: true })
   }

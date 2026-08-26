@@ -85,9 +85,9 @@ EOF
 "${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" adopt "$(pwd)"
 ```
 
-Informar el `<id>` y la ruta del store impresos. Aclarar que el `.todo/` local fue movido (borrado del repo) y que los cambios del store quedaron commiteados ahí.
+Informar el `<id>` y la ruta del store impresos. Aclarar que el `.todo/` local fue movido (borrado del repo) y que los cambios del store quedaron commiteados ahí. **TERMINAR EL SKILL ACÁ**: el `.todo/` local fue movido; no queda nada que configurar en el paso 1 (ya no existe `.todo/config.json` en este repo).
 
-**Si `MODE` es `repo`**: continuar en el paso 1 — la configuración es por proyecto y vive en `.todo/config.json` local.
+**Si `MODE` es `repo`** y no se ejecutó `adopt`: continuar en el paso 1 — la configuración es por proyecto y vive en `.todo/config.json` local.
 
 **Si `MODE` es `nonrepo`**: `gitignore_todo` no aplica (el store es privado y ya nace con config válido), pero acá se dan de alta los proyectos sin repo. Preguntar con `AskUserQuestion`:
 
