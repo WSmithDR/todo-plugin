@@ -40,6 +40,9 @@ const decision = preCommitReview({
   markedCheckboxes: lines(git("diff", "--cached", "-U0", "--", ".todo/TODO.md", ".todo/DOING.md")).filter((line) =>
     line.startsWith("+- [x]"),
   ).length,
+  registeredWork: lines(
+    git("diff", "--cached", "-U0", "--", ".todo/DONE.md", ".todo/DISCARDED.md"),
+  ).filter((line) => line.startsWith("+- [x]") || line.startsWith("+- ~~")).length,
   doing: openItemTitles(read(".todo/DOING.md")),
   todoOpen: openItems(read(".todo/TODO.md")),
   recentCommits: lines(git("log", "--oneline", `-${RECENT_COMMITS}`)),

@@ -6,6 +6,7 @@ const base = {
   hasTodoDir: true,
   staged: ["src/x.ts"],
   markedCheckboxes: 0,
+  registeredWork: 0,
   doing: [] as string[],
   todoOpen: [] as { title: string; text: string }[],
   recentCommits: ["abc123 fix: algo"],
@@ -125,4 +126,45 @@ test("un archivo del propio .todo/ no relaciona: editarlo es la operación del p
     return d.action === "advise" ? d.message : ""
   })()
   assert.doesNotMatch(message, /¿alguna quedó resuelta\?/)
+})
+
+// ── trabajo ya registrado en DONE/DISCARDED → allow, no peaje ──────────────
+
+test("staging con item cerrado en DONE.md → ALLOW", () => {
+  const decision = preCommitReview({
+    hasTodoDir: true,
+    staged: ["src/auth.py", ".todo/DONE.md"],
+    markedCheckboxes: 0,
+    registeredWork: 1,
+    doing: [],
+    todoOpen: [],
+    recentCommits: [],
+  })
+  assert.equal(decision.action, "allow")
+})
+
+test("checkbox huérfano en TODO sigue ganando aunque DONE traiga trabajo", () => {
+  const decision = preCommitReview({
+    hasTodoDir: true,
+    staged: [".todo/TODO.md", ".todo/DONE.md"],
+    markedCheckboxes: 2,
+    registeredWork: 1,
+    doing: [],
+    todoOpen: [],
+    recentCommits: [],
+  })
+  assert.equal(decision.action, "deny")
+})
+
+test("sin trabajo registrado ni checkboxes, sigue el advise de siempre", () => {
+  const decision = preCommitReview({
+    hasTodoDir: true,
+    staged: ["src/x.ts"],
+    markedCheckboxes: 0,
+    registeredWork: 0,
+    doing: [],
+    todoOpen: [],
+    recentCommits: [],
+  })
+  assert.equal(decision.action, "advise")
 })

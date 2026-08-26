@@ -11,6 +11,8 @@ export type PreCommitInput = {
   staged: string[]
   /** Cuántos `- [x]` se AGREGARON a TODO.md/DOING.md en este staging. */
   markedCheckboxes: number
+  /** Cuántos items (`- [x]` / `- ~~`) se AGREGARON a DONE.md/DISCARDED.md en este staging. */
+  registeredWork: number
   /** Títulos de los items abiertos en DOING.md. */
   doing: string[]
   /** Los items abiertos de TODO.md, con su texto: se cruzan contra el staging. */
@@ -39,6 +41,12 @@ Un item completado NO se marca: se MUEVE a DONE.md con narrativa y atribución.
   --no-verify NO corresponde acá: el checkbox huérfano rompe DONE.md como fuente de completados.`,
     )
   }
+
+  // El peaje tenía que tener una moneda: si el staging YA registra el trabajo
+  // (items cerrados en DONE/DISCARDED), el commit pasa sin --no-verify. Esta es
+  // la condición de allow que antes no existía — un gate que nunca puede pasar
+  // obliga a normalizar --no-verify, que desarma toda la cadena de hooks.
+  if (input.registeredWork > 0) return ALLOW
 
   if (input.staged.length === 0) return ALLOW
 
