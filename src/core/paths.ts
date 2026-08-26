@@ -28,5 +28,3 @@ export function cacheDir(env: Env = process.env): string {
 export function storeBase(env: Env = process.env): string {
   return join(env.XDG_DATA_HOME || join(env.HOME || homedir(), ".local", "share"), "todo")
 }
-
-export const todoDir = (cwd: string): string => join(cwd, ".todo")

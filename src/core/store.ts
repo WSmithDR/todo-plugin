@@ -1,5 +1,5 @@
 import { execFileSync, type ExecFileSyncOptions } from "node:child_process"
-import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs"
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmdirSync, rmSync, writeFileSync } from "node:fs"
 import { join, basename, sep } from "node:path"
 import { storeBase, type Env } from "./paths.ts"
 
@@ -204,9 +204,12 @@ export function create(name: string, opts: StoreOptions = {}): string {
  */
 export function setOrigin(id: string, repoRootPath: string, opts: StoreOptions = {}): void {
   const base = storeBase(opts.env)
+  const origin = physical(repoRootPath)
   const configPath = join(base, id, ".todo", "config.json")
   const config = JSON.parse(readFileSync(configPath, "utf8")) as Record<string, unknown>
-  config.origin = physical(repoRootPath)
+  const current = typeof config.origin === "string" ? physical(config.origin) : ""
+  if (current === origin) return
+  config.origin = origin
   writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n")
   try {
     execFileSync("git", ["-C", base, "add", join(id, ".todo", "config.json")], QUIET)
@@ -232,6 +235,9 @@ export function projectForRepo(root: string, opts: StoreOptions = {}): Project |
  */
 export function resolveProjectDir(cwd: string, env?: Env): string | null {
   if (existsSync(join(cwd, ".todo"))) return cwd
+  // Cortocircuito: sin la preferencia no hay nada que buscar en el store, y así
+  // el caso por-defecto no paga un `git rev-parse` por evento.
+  if (!centralRepos({ env })) return null
   const project = projectForRepo(repoRoot(cwd), { env })
   return project ? join(storeBase(env), project.id) : null
 }
@@ -270,7 +276,14 @@ export function adopt(repoPath: string, name: string | undefined, opts: StoreOpt
     } catch {
       // Sin identidad git en el store el dato ya quedó en disco.
     }
-    rmSync(local, { recursive: true, force: true })
+    for (const file of readdirSync(local)) {
+      if (!/^((TODO|DOING|DONE|DISCARDED)(-[0-9]{4})?\.md)$/.test(file)) continue
+      cpSync(join(local, file), join(dir, ".todo", file))
+      rmSync(join(local, file))
+    }
+    // El directorio queda si tenía algo más (config custom, etc.) — eso se deja
+    // atrás a propósito. Si quedó vacío, fuera:
+    if (readdirSync(local).length === 0) rmdirSync(local)
   }
 
   setOrigin(id, root, opts)

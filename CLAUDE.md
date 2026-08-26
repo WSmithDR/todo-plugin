@@ -131,9 +131,10 @@ post-commit pierde la lista retroactiva de commits sin registrar (DONE.md ya no
 tiene historial en el repo); la marca del pre-commit sigue delatando el commit
 forzado.
 
-**SessionStart también los cubre** (`storeSetup` en `session-setup.ts`), y solo
-**fuera de un repo**: recorre los proyectos del store, rota sus archivos por año en
-silencio —commiteando, porque el store se versiona solo— y junta en UN aviso los que
+**SessionStart también los cubre** (`storeSetup` en `session-setup.ts`): sin la
+preferencia, solo **fuera de un repo**; con `central_repos` activa, también dentro
+de los repos amarrados por `origin` — ese repo ya es el proyecto. En ambos casos
+recorre los proyectos del store, rota sus archivos por año en silencio —commiteando, porque el store se versiona solo— y junta en UN aviso los que
 estén cargados o vencidos, una vez por proyecto y por día. Sin esto no los alcanzaba
 nada: el gate era `if (!existsSync(cwd/.todo)) return ALLOW`, y son justo los
 proyectos que menos se abren, o sea donde más se acumula. Dentro de un repo sin

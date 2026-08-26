@@ -233,13 +233,17 @@ test("adopt muda el .todo local al store, registra origin y borra el local", () 
     mkdirSync(join(repo, ".todo"))
     writeFileSync(join(repo, ".todo", "TODO.md"), "# TODOs\n\n- [ ] **Pendiente viejo**\n")
     writeFileSync(join(repo, ".todo", "DONE.md"), "# Completados\n")
+    // un archivo que no matchea la lista de mudanza se queda atrás
+    writeFileSync(join(repo, ".todo", "notas.txt"), "queda")
 
     const { id, dir } = adopt(repo, undefined, { env })
 
     assert.ok(existsSync(join(dir, ".todo", "TODO.md")))
     assert.match(readFileSync(join(dir, ".todo", "TODO.md"), "utf8"), /Pendiente viejo/)
     assert.ok(existsSync(join(dir, ".todo", "DONE.md")))
-    assert.ok(!existsSync(join(repo, ".todo")))
+    // el directorio sobrevive si tenía algo más; solo los mudados se van
+    assert.ok(existsSync(join(repo, ".todo", "notas.txt")))
+    assert.ok(!existsSync(join(repo, ".todo", "TODO.md")))
     const name = list({ env }).find((p) => p.id === id)?.name
     assert.equal(typeof name === "string" && /^todo-repo/.test(name), true) // nombre = basename del repo
     // segunda llamada sobre el mismo repo NO crea un proyecto nuevo
