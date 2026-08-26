@@ -153,13 +153,13 @@ RESUELTO=$(date -Iminutes)   # fin preciso, p.ej. 2026-06-26T18:10-05:00
 - `responsable:` lists all contributors from Step 3, comma-separated
 - If only one contributor, still use the `responsable:` label
 - The creation date and creator are preserved from the original item's metadata
-- **Conservá el `| iniciado: <ISO>`** del ítem (si venía de DOING.md ya lo trae) dentro del bloque `_(creado por: ...)_`. Sin él, bitacora no puede estimar la duración. Si el ítem se cierra directo desde TODO.md (nunca pasó por DOING, no tiene `iniciado:`), no agregues nada — bitacora usará la fecha de creación como fallback.
+- **El `| iniciado: <ISO>` va SIEMPRE** dentro del bloque `_(creado por: ...)_`. Si el ítem viene de DOING.md ya lo trae. Si se cierra directo desde TODO.md (nunca pasó por DOING), estampá `iniciado:` con el timestamp de creación del ítem — el que sigue al `·` de `creado por:`. Si ese `creado por:` es viejo y solo trae fecha (`YYYY-MM-DD` sin hora), usala tal cual como `iniciado:` — bitacora la interpreta como medianoche. Nunca cierres sin extremo inicial: sin él, el span `iniciado → resuelto` no existe y bitacora tiene que estimar a ojo.
 - La fecha de `resuelto:` (tras `responsable: … ·`) es `date -Iminutes` (timestamp con hora), no solo la fecha.
 
 Examples:
 - `_(creado por: SmithDR · 2026-05-10 | iniciado: 2026-06-09T09:15-05:00)_ ✓ _resuelto: TZ=America/Santiago en .env — responsable: SmithDR · 2026-06-09T11:40-05:00_`
 - `_(creado por: Alice · 2026-04-01 | iniciado: 2026-06-08T14:00-05:00)_ ✓ _resuelto: implementado en commit a3f9b2c — responsable: Alice, Bob · 2026-06-09T17:20-05:00_`
-- `_(creado por: SmithDR · 2026-05-20)_ ✓ _resuelto: según descripción del usuario — responsable: SmithDR · 2026-06-09T10:05-05:00_` _(cerrada directo de TODO, sin `iniciado`)_
+- `_(creado por: SmithDR · 2026-05-20T09:00-05:00 | iniciado: 2026-05-20T09:00-05:00)_ ✓ _resuelto: según descripción del usuario — responsable: SmithDR · 2026-06-09T10:05-05:00_` _(cerrada directo de TODO: `iniciado` = timestamp de creación)_
 
 ### 6. Move discarded items to .todo/DISCARDED.md
 

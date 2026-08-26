@@ -72,19 +72,19 @@ if [ ! -d ".todo" ] && { [ -f "TODO.md" ] || [ -f "DOING.md" ]; }; then
   done
   # Backfill creator on items missing it
   CREATOR=$(git log --format='%an' -1 -- TODO.md 2>/dev/null || git config user.name)
-  TODAY=$(date +%Y-%m-%d)
+  CREADO=$(date -Iminutes)
   for f in .todo/TODO.md .todo/DOING.md; do
     [ -f "$f" ] && sed -i -E \
-      "/^\- \[ \] / { /creado por/! s/$/ _(creado por: $CREATOR · $TODAY)_/ }" "$f"
+      "/^\- \[ \] / { /creado por/! s/$/ _(creado por: $CREATOR · $CREADO)_/ }" "$f"
   done
   git add .todo/
   git commit -m "TODO: migrate legacy files to .todo/ + backfill creator metadata"
 fi
 # Backfill items missing metadata in already-migrated files
-CREATOR=$(git config user.name); TODAY=$(date +%Y-%m-%d)
+CREATOR=$(git config user.name); CREADO=$(date -Iminutes)
 for f in .todo/TODO.md .todo/DOING.md; do
   [ -f "$f" ] && sed -i -E \
-    "/^\- \[ \] / { /creado por/! s/$/ _(creado por: $CREATOR · $TODAY)_/ }" "$f"
+    "/^\- \[ \] / { /creado por/! s/$/ _(creado por: $CREATOR · $CREADO)_/ }" "$f"
 done
 ```
 
@@ -169,7 +169,7 @@ Heurística: si la respuesta a urgente y a importante no es clara, default a Q2.
 ### 4. Write the TODO entry
 
 ```markdown
-- [ ] **[Short title]** — [One sentence: what breaks, when it breaks, what the user experiences.] _(creado por: GitName · YYYY-MM-DD)_
+- [ ] **[Short title]** — [One sentence: what breaks, when it breaks, what the user experiences.] _(creado por: GitName · 2026-08-25T10:30-05:00)_
 ```
 
 Rules:
@@ -177,7 +177,7 @@ Rules:
 - Description: explains the problem, not the solution
 - Name the specific file, function, class, or component involved
 - If it causes a user-facing failure, say so explicitly ("el usuario queda sin respuesta", "falla silenciosamente", "devuelve datos incorrectos")
-- `GitName` comes from `git config user.name`, `YYYY-MM-DD` is today's date
+- `GitName` comes from `git config user.name`, the timestamp after `·` comes from `date -Iminutes`
 
 ### 5. Insert in the correct quadrant
 

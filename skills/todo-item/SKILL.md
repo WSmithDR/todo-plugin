@@ -55,7 +55,7 @@ cd "$("${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" path "<id ele
 
 ## Sequence
 
-1. **`todo-add`** — write and insert the item in the correct section of `.todo/TODO.md`, including `_(creado por: GitName · YYYY-MM-DD)_` metadata
+1. **`todo-add`** — write and insert the item in the correct section of `.todo/TODO.md`, including `_(creado por: GitName · YYYY-MM-DDTHH:MM±HH:MM)_` metadata
 2. **`todo-solutions`** — add 2–4 concrete, distinct solution options to that item
 3. **`todo-recommend`** — read the options and add a justified recommendation
 4. **`todo-clarify`** — scan only the newly added text and add inline clarifications for non-obvious terms
