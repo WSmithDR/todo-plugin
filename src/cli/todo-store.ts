@@ -5,10 +5,11 @@
 //   todo-store list            → "<id>\t<name>" por línea
 //   todo-store create <name>   → imprime el id
 //   todo-store path <id>       → imprime el directorio del proyecto
+//   todo-store adopt [<ruta>] [<nombre>]  → muda el .todo local al store
 //
 // El formato de salida es el del script en bash que reemplaza: las skills lo
 // parsean, así que cambiarlo las rompe.
-import { create, list, mode, projectPath } from "../core/store.ts"
+import { adopt, create, list, mode, projectPath } from "../core/store.ts"
 
 const [command, ...args] = process.argv.slice(2)
 
@@ -36,8 +37,15 @@ try {
       break
     }
 
+    case "adopt": {
+      const [target, name] = args
+      const result = adopt(target ?? process.cwd(), name)
+      console.log(`${result.id}\t${result.dir}`)
+      break
+    }
+
     default:
-      process.stderr.write("uso: todo-store {mode|list|create <name>|path <id>}\n")
+      process.stderr.write("uso: todo-store {mode|list|create <name>|path <id>|adopt [<ruta>] [<nombre>]}\n")
       process.exit(1)
   }
 } catch (error) {

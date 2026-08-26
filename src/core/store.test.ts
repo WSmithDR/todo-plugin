@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process"
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { create, list, mode, projectPath, slugify } from "./store.ts"
+import { adopt, create, list, mode, projectForRepo, projectPath, resolveProjectDir, setOrigin, slugify } from "./store.ts"
 
 // Los commits del store necesitan identidad git, que en CI puede no existir.
 process.env.GIT_AUTHOR_NAME ||= "T"
@@ -186,6 +186,66 @@ test("list ignora un config.json corrupto en vez de romperse", () => {
 
 test("list sin store → []", () => {
   withStore((env) => assert.deepEqual(list({ env }), []))
+})
+
+// ── origin / projectForRepo / resolveProjectDir ────────────────────────────
+
+test("projectForRepo exige central_repos y matchea por origin físico", () => {
+  withRepo((env, base, repo) => {
+    const id = create("Mi Repo", { env })
+    // sin la preferencia, no resuelve aunque haya origin
+    setOrigin(id, repo, { env })
+    assert.equal(projectForRepo(repo, { env }), null)
+    writeFileSync(join(base, "settings.json"), JSON.stringify({ central_repos: true }))
+    assert.equal(projectForRepo(repo, { env })?.id, id)
+    // y un repo distinto no resuelve a este proyecto
+    const other = mkdtempSync(join(tmpdir(), "todo-other-"))
+    execFileSync("git", ["-C", other, "init", "-q"])
+    assert.equal(projectForRepo(other, { env }), null)
+    rmSync(other, { recursive: true, force: true })
+  })
+})
+
+test("resolveProjectDir: .todo local gana; si no hay, el proyecto con origin", () => {
+  withRepo((env, base, repo) => {
+    const id = create("Con Origen", { env })
+    setOrigin(id, repo, { env })
+    writeFileSync(join(base, "settings.json"), JSON.stringify({ central_repos: true }))
+    assert.equal(resolveProjectDir(repo, env), join(base, id))
+    // con .todo local, gana el local (hasta que adopt lo mueva)
+    mkdirSync(join(repo, ".todo"))
+    assert.equal(resolveProjectDir(repo, env), repo)
+  })
+})
+
+test("resolveProjectDir sin repo ni .todo → null", () => {
+  withStore((env) => {
+    const suelto = mkdtempSync(join(tmpdir(), "todo-suelto-"))
+    assert.equal(resolveProjectDir(suelto, env), null)
+    rmSync(suelto, { recursive: true, force: true })
+  })
+})
+
+// ── adopt ──────────────────────────────────────────────────────────────────
+
+test("adopt muda el .todo local al store, registra origin y borra el local", () => {
+  withRepo((env, _base, repo) => {
+    mkdirSync(join(repo, ".todo"))
+    writeFileSync(join(repo, ".todo", "TODO.md"), "# TODOs\n\n- [ ] **Pendiente viejo**\n")
+    writeFileSync(join(repo, ".todo", "DONE.md"), "# Completados\n")
+
+    const { id, dir } = adopt(repo, undefined, { env })
+
+    assert.ok(existsSync(join(dir, ".todo", "TODO.md")))
+    assert.match(readFileSync(join(dir, ".todo", "TODO.md"), "utf8"), /Pendiente viejo/)
+    assert.ok(existsSync(join(dir, ".todo", "DONE.md")))
+    assert.ok(!existsSync(join(repo, ".todo")))
+    const name = list({ env }).find((p) => p.id === id)?.name
+    assert.equal(typeof name === "string" && /^todo-repo/.test(name), true) // nombre = basename del repo
+    // segunda llamada sobre el mismo repo NO crea un proyecto nuevo
+    const again = adopt(repo, undefined, { env })
+    assert.equal(again.id, id)
+  })
 })
 
 test("projectPath rechaza un id con path traversal", () => {

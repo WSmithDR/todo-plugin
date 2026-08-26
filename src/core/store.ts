@@ -1,6 +1,6 @@
 import { execFileSync, type ExecFileSyncOptions } from "node:child_process"
-import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs"
-import { join, sep } from "node:path"
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs"
+import { join, basename, sep } from "node:path"
 import { storeBase, type Env } from "./paths.ts"
 
 /**
@@ -33,13 +33,31 @@ function physical(path: string): string {
   }
 }
 
-/**
- * ¿El `.todo/` de este directorio sale del repo o del store central?
- *
- * La comparación es sobre paths FÍSICOS. En bash se usaba `$PWD`, que es el path
- * lógico: con un symlink en HOME o en XDG_DATA_HOME un directorio del propio
- * store se clasificaba como `repo` y el plugin escribía en el lugar equivocado.
- */
+/** Root físico del repo que contiene `path`, o "" si no hay. */
+function repoRoot(path: string): string {
+  try {
+    return physical(
+      execFileSync("git", ["-C", path, "rev-parse", "--show-toplevel"], {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      }).trim(),
+    )
+  } catch {
+    return ""
+  }
+}
+
+function readOrigin(id: string, opts: StoreOptions): string {
+  try {
+    const raw = JSON.parse(readFileSync(join(storeBase(opts.env), id, ".todo", "config.json"), "utf8")) as {
+      origin?: string
+    }
+    return typeof raw.origin === "string" ? physical(raw.origin) : ""
+  } catch {
+    return ""
+  }
+}
+
 /**
  * Preferencia global del store: ¿los proyectos CON repo también centralizan su
  * .todo acá? Vive en <base>/settings.json — fuera de los config.json por
@@ -56,6 +74,13 @@ export function centralRepos(opts: StoreOptions = {}): boolean {
   }
 }
 
+/**
+ * ¿El `.todo/` de este directorio sale del repo o del store central?
+ *
+ * La comparación es sobre paths FÍSICOS. En bash se usaba `$PWD`, que es el path
+ * lógico: con un symlink en HOME o en XDG_DATA_HOME un directorio del propio
+ * store se clasificaba como `repo` y el plugin escribía en el lugar equivocado.
+ */
 export function mode(cwd: string, opts: StoreOptions = {}): Mode {
   const base = physical(storeBase(opts.env))
   const here = physical(cwd)
@@ -170,6 +195,76 @@ export function create(name: string, opts: StoreOptions = {}): string {
   }
 
   return id
+}
+
+/**
+ * Registra (o actualiza) qué repo alimenta este proyecto. Lo consume
+ * `projectForRepo` para resolver hooks, pipeline y editing-item en repos
+ * centralizados: un repo = un proyecto.
+ */
+export function setOrigin(id: string, repoRootPath: string, opts: StoreOptions = {}): void {
+  const base = storeBase(opts.env)
+  const configPath = join(base, id, ".todo", "config.json")
+  const config = JSON.parse(readFileSync(configPath, "utf8")) as Record<string, unknown>
+  config.origin = physical(repoRootPath)
+  writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n")
+  try {
+    execFileSync("git", ["-C", base, "add", join(id, ".todo", "config.json")], QUIET)
+    execFileSync("git", ["-C", base, "commit", "-q", "-m", `todo: ${id} ← ${basename(config.origin as string)}`], QUIET)
+  } catch {
+    // El store puede no tener identidad git; el dato ya quedó escrito.
+  }
+}
+
+/** El proyecto cuyo repo de origen es este. Exige la preferencia central_repos. */
+export function projectForRepo(root: string, opts: StoreOptions = {}): Project | null {
+  if (!centralRepos(opts)) return null
+  const here = physical(root)
+  if (here === "") return null
+  return list(opts).find((project) => readOrigin(project.id, opts) === here) ?? null
+}
+
+/**
+ * Dónde están las tareas de este cwd: el `.todo/` local mientras exista —así la
+ * migración con `adopt` es optativa y reversible—, sino el proyecto del store
+ * con `origin` en este repo. Devuelve el DIR DEL PROYECTO (el que contiene
+ * `.todo/`), igual que hace `editingContext`. null si no hay ninguno.
+ */
+export function resolveProjectDir(cwd: string, env?: Env): string | null {
+  if (existsSync(join(cwd, ".todo"))) return cwd
+  const project = projectForRepo(repoRoot(cwd), { env })
+  return project ? join(storeBase(env), project.id) : null
+}
+
+/**
+ * Mudanza retroactiva: el `.todo/` de un repo pasa al store central y el repo
+ * queda amarrado vía `origin`. Idempotente por repo — la segunda llamada
+ * encuentra el proyecto por origin y no duplica nada.
+ *
+ * ponytail: mueve TODO/DOING/DONE/DISCARDED y sus archivos de año; cualquier
+ * otro archivo suelto en .todo/ se deja atrás a propósito — si aparece algo que
+ * haga falta mudar, se agrega a la lista, no un glob ciego.
+ */
+export function adopt(repoPath: string, name: string | undefined, opts: StoreOptions = {}): { id: string; dir: string } {
+  const root = repoRoot(repoPath)
+  if (root === "") throw new Error(`no es un repo git: ${repoPath}`)
+
+  const existing = list(opts).find((project) => readOrigin(project.id, opts) === root)
+  const id = existing?.id ?? create(name ?? basename(root), opts)
+  const dir = join(storeBase(opts.env), id)
+  mkdirSync(join(dir, ".todo"), { recursive: true })
+
+  const local = join(root, ".todo")
+  if (existsSync(local)) {
+    for (const file of readdirSync(local)) {
+      if (!/^((TODO|DOING|DONE|DISCARDED)(-[0-9]{4})?\.md)$/.test(file)) continue
+      cpSync(join(local, file), join(dir, ".todo", file))
+    }
+    rmSync(local, { recursive: true, force: true })
+  }
+
+  setOrigin(id, root, opts)
+  return { id, dir }
 }
 
 /**
