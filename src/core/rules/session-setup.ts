@@ -60,8 +60,9 @@ export function sessionSetup(ctx: SessionContext): Decision {
       return mergeDecisions([
         storeSetup(ctx, today),
         advise(`TODO-CENTRAL: este repo pasó al registro central (${migrado.dir}).
-Tu .todo/ local fue movido ahí y eliminado del repo: las tareas ya no viven junto al código.
-Las skills operan sobre el store desde ahora; no hay paso manual ni vuelta atrás salvo recrear el directorio.`),
+Movido al store: ${migrado.mudados.length > 0 ? migrado.mudados.map((f) => f.split("/").pop()).join(", ") : "nada (no había archivos)"}.${migrado.saltados.length > 0 ? `
+Descartado por más viejo que el store: ${migrado.saltados.join(", ")}.` : ""}
+Las tareas ya no viven junto al código: las skills operan sobre el store desde ahora.`),
       ])
     }
   }

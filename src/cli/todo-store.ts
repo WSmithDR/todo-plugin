@@ -41,6 +41,8 @@ try {
       const [target, name] = args
       const result = adopt(target ?? process.cwd(), name)
       console.log(`${result.id}\t${result.dir}`)
+      if (result.saltados.length > 0)
+        process.stderr.write(`descartados por más viejos que el store: ${result.saltados.join(", ")}\n`)
       process.stderr.write(
         "el .todo/ local fue eliminado; esos borrados quedan sin commitear en tu repo — revisalos antes del próximo commit\n",
       )

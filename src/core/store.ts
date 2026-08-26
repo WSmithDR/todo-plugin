@@ -320,7 +320,9 @@ export function resolveProjectDir(cwd: string, env?: Env): string | null {
  * otro archivo suelto en .todo/ se deja atrás a propósito — si aparece algo que
  * haga falta mudar, se agrega a la lista, no un glob ciego.
  */
-export function adopt(repoPath: string, name: string | undefined, opts: StoreOptions = {}): { id: string; dir: string } {
+export type AdoptResult = { id: string; dir: string; mudados: string[]; saltados: string[] }
+
+export function adopt(repoPath: string, name: string | undefined, opts: StoreOptions = {}): AdoptResult {
   const root = repoRoot(repoPath)
   if (root === "") throw new Error(`no es un repo git: ${repoPath}`)
 
@@ -335,8 +337,9 @@ export function adopt(repoPath: string, name: string | undefined, opts: StoreOpt
   mkdirSync(join(dir, ".todo"), { recursive: true })
 
   const local = join(root, ".todo")
+  const saltados: string[] = []
+  const mudados: string[] = []
   if (existsSync(local)) {
-    const mudados: string[] = []
     for (const file of readdirSync(local)) {
       if (!/^((TODO|DOING|DONE|DISCARDED)(-[0-9]{4})?\.md)$/.test(file)) continue
       const destino = join(dir, ".todo", file)
@@ -346,8 +349,10 @@ export function adopt(repoPath: string, name: string | undefined, opts: StoreOpt
       if (
         existsSync(destino) &&
         fechaActualizacion(readFileSync(destino, "utf8")) >= fechaActualizacion(readFileSync(join(local, file), "utf8"))
-      )
+      ) {
+        saltados.push(`${file} (el del store es más nuevo)`)
         continue
+      }
       cpSync(join(local, file), destino)
       rmSync(join(local, file))
       mudados.push(join(id, ".todo", file))
@@ -370,7 +375,7 @@ export function adopt(repoPath: string, name: string | undefined, opts: StoreOpt
   }
 
   setOrigin(id, root, opts)
-  return { id, dir }
+  return { id, dir, mudados, saltados }
 }
 
 /**
@@ -381,7 +386,7 @@ export function adopt(repoPath: string, name: string | undefined, opts: StoreOpt
  * null cuando no corresponde: preferencia apagada, dentro del propio store
  * (nunca se traga a sí mismo), sin `.todo/` local, sin repo o ya adoptado.
  */
-export function adoptPending(cwd: string, opts: StoreOptions = {}): { id: string; dir: string } | null {
+export function adoptPending(cwd: string, opts: StoreOptions = {}): AdoptResult | null {
   if (!centralRepos(opts)) return null
 
   const base = physical(storeBase(opts.env))
