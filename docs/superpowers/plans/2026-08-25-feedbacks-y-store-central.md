@@ -1102,6 +1102,24 @@ Sin `last_commit` todavía (proyecto recién adoptado), cae a `-20`: la lista am
 
 - [x] **Step 8: CLAUDE.md** — borrar el techo documentado del párrafo de centralización y reemplazarlo por una línea sobre last_commit.
 
+
+---
+
+## Post-plan (2026-08-26) — ejecutado tras la revisión inicial
+
+| Commit | Qué |
+|---|---|
+| `537ef0f` | `adoptPending`: central_repos muerde — el primer SessionStart de un repo con `.todo/` local lo adopta sin preguntar |
+| `ff33b0a` | Multi-PC: identidad por remote URL (`origin_url`) + `config.local.json` ignorado (`*.local.json`) + `syncStore` pull/push |
+| `840cce1` | Ramas mergeadas con tarea abierta → aviso de cierre, nunca automático (`merged-branches.ts`) |
+| `850d88f` | mergedBranches v2: base remota fresca (fetch --prune) + capa squash por subject del PR. Verificado en vivo contra eminat-app |
+| `0f52ffe` | adopt no destructivo: fechas deciden, no el orden de copia (nace de observar ses_fc3bebad) |
+| `8dbe21b` | Reporte del proceso de adopción — qué movió y qué descartó |
+
+Feedback cerrados: `deteccion-automatica-de-ramas-mergeadas`. Registrados y pendientes: `todo-stale-ciego-en-store-central`; `listar-feedbacks-de-todos-los-plugins` (cli-plugin-template).
+
+Pendiente manual: smoke test end-to-end en una sesión real de eminat-app post-1.45.0.
+
 ## Self-review
 
 1. **Spec coverage:** los 4 feedbacks tienen tarea (T1, T2, T3, T4+T5); la migración retroactiva pedida explícitamente por el usuario es T4c + T5. El sexto feedback (`todo-done-salteado-checkboxes-a-mano`) ya está aplicado desde 2026-07-04 y `todo-config-repo-centric` se cerró al inicio de esta sesión — fuera del plan.
