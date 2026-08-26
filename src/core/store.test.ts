@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process"
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { adopt, adoptPending, create, list, mode, projectForRepo, projectPath, resolveProjectDir, setOrigin, slugify, syncStore } from "./store.ts"
+import { adopt, adoptPending, create, list, mode, projectForRepo, projectPath, readLastCommit, resolveProjectDir, setLastCommit, setOrigin, slugify, syncStore } from "./store.ts"
 
 // Los commits del store necesitan identidad git, que en CI puede no existir.
 process.env.GIT_AUTHOR_NAME ||= "T"
@@ -377,5 +377,22 @@ test("storeSync: sin remote es un no-op silencioso; con remoto pelado empuja de 
     }).trim()
     assert.ok(head.length > 0)
     rmSync(remoto, { recursive: true, force: true })
+  })
+})
+
+// ── last_commit: el punto de registro del post-commit centralizado ─────────
+
+test("setLastCommit escribe y lee en el config universal", () => {
+  withStore((env, base) => {
+    const id = create("Con Hash", { env })
+    assert.equal(readLastCommit(id, { env }), "")
+    setLastCommit(id, "abc1234", { env })
+    assert.equal(readLastCommit(id, { env }), "abc1234")
+    const cfg = JSON.parse(readFileSync(join(base, id, ".todo", "config.json"), "utf8"))
+    assert.equal(cfg.last_commit, "abc1234")
+    // idempotente: mismo hash no re-commitea
+    const antes = execFileSync("git", ["-C", base, "rev-parse", "HEAD"], { encoding: "utf8" })
+    setLastCommit(id, "abc1234", { env })
+    assert.equal(execFileSync("git", ["-C", base, "rev-parse", "HEAD"], { encoding: "utf8" }), antes)
   })
 })

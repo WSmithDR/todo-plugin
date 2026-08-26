@@ -8,7 +8,7 @@ import { execFileSync } from "node:child_process"
 import { existsSync, rmSync } from "node:fs"
 import { preCommitMarker } from "../core/git.ts"
 import { postCommitReview } from "../core/rules/post-commit.ts"
-import { resolveProjectDir } from "../core/store.ts"
+import { projectForRepo, readLastCommit, repoRootOf, resolveProjectDir } from "../core/store.ts"
 
 const cwd = process.cwd()
 
@@ -29,12 +29,16 @@ if (preCommitRan) rmSync(marker, { force: true })
 // Retroactivo: no solo este commit, todos los que no dejaron rastro desde el
 // último cierre. Si DONE.md nunca se tocó, se muestran los últimos 20.
 const projectDir = resolveProjectDir(cwd)
-// ponytail: en repos centralizados DONE.md ya no tiene historial en este repo,
-// así que la lista retroactiva se reduce al commit corriente — la marca del
-// pre-commit sigue siendo quien delata el commit forzado. Volver a la lista
-// amplia si algún día el stamp vive en el store.
 const centralized = projectDir !== null && projectDir !== cwd
-const lastRegistered = centralized ? "" : git("log", "-1", "--format=%H", "--", ".todo/DONE.md")
+// El punto de registro vive en el config del proyecto (avanza cuando una skill
+// cierra algo desde este repo); sin él, cae a la lista amplia de siempre hasta
+// la primera registración.
+const lastRegistered = centralized
+  ? (() => {
+      const project = projectForRepo(repoRootOf(cwd))
+      return project ? readLastCommit(project.id) : ""
+    })()
+  : git("log", "-1", "--format=%H", "--", ".todo/DONE.md")
 const range = lastRegistered === "" ? ["-20"] : [`${lastRegistered}..HEAD`]
 if (centralized) range.length = 0
 

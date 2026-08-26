@@ -451,3 +451,35 @@ export function syncStore(opts: StoreOptions = {}): void {
     // ídem — el pull de la próxima sesión recoge lo que hoy no pudo subir.
   }
 }
+
+/** El HEAD del repo hasta donde están registradas las tareas. Universal:
+ * el hash vale en cualquier clon del mismo remote. Idempotente por hash. */
+export function setLastCommit(id: string, head: string, opts: StoreOptions = {}): void {
+  const base = storeBase(opts.env)
+  const configPath = join(base, id, ".todo", "config.json")
+  try {
+    const config = JSON.parse(readFileSync(configPath, "utf8")) as Record<string, unknown>
+    if (config.last_commit === head) return
+    config.last_commit = head
+    writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n")
+    execFileSync("git", ["-C", base, "add", join(id, ".todo", "config.json")], QUIET)
+    execFileSync("git", ["-C", base, "commit", "-q", "-m", `todo: ${id} registrada hasta ${head.slice(0, 7)}`], QUIET)
+  } catch {
+    // Sin identidad git o sin cambios: el dato ya quedó en disco.
+  }
+}
+
+export function readLastCommit(id: string, opts: StoreOptions = {}): string {
+  try {
+    const raw = JSON.parse(readFileSync(join(storeBase(opts.env), id, ".todo", "config.json"), "utf8")) as {
+      last_commit?: string
+    }
+    return typeof raw.last_commit === "string" ? raw.last_commit : ""
+  } catch {
+    return ""
+  }
+}
+
+export function repoRootOf(path: string): string {
+  return repoRoot(path)
+}

@@ -3,7 +3,7 @@ import { guardEnabled, storeAvailable } from "./env.ts"
 import { isWindowOpen } from "./window.ts"
 import { currentBranch, currentHead, refLogStamp } from "./git.ts"
 import { editingContext, openItemTitles, readTodoFile } from "./todo-files.ts"
-import { projectForPath, resolveProjectDir, syncStore } from "./store.ts"
+import { projectForPath, projectForRepo, repoRootOf, resolveProjectDir, setLastCommit, syncStore } from "./store.ts"
 import {
   clearTouched,
   lastSeenHead,
@@ -46,7 +46,18 @@ export function decideBefore(event: ToolEvent): Decision {
     for (const path of event.paths) {
       if (!path.includes(".todo")) continue
       const project = projectForPath(path)
-      if (project) rememberTouched(project.dir)
+      if (!project) continue
+      rememberTouched(project.dir)
+
+      // Registración real desde el propio repo → el punto de referencia del
+      // post-commit centralizado avanza. Solo DONE/DISCARDED cuentan como
+      // "registrado hasta acá": TODO.md moviéndose no cierra nada.
+      if (/[/\\](DONE|DISCARDED)(-[0-9]{4})?\.md$/.test(path)) {
+        const root = repoRootOf(event.cwd)
+        if (root !== "" && projectForRepo(root)?.id === project.id) {
+          setLastCommit(project.id, currentHead(root))
+        }
+      }
     }
   }
 

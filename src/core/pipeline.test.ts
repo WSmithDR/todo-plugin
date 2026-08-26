@@ -2,7 +2,9 @@ import { test } from "node:test"
 import assert from "node:assert/strict"
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
+import { execFileSync } from "node:child_process"
 import { join } from "node:path"
+import { readLastCommit } from "./store.ts"
 import { decideBefore, decideSessionClose } from "./pipeline.ts"
 import { clearTouched, touchedProjects } from "./session-state.ts"
 import { openWindow } from "./window.ts"
@@ -95,4 +97,35 @@ test("sin tareas en curso no hay nada que avisar", () => {
   decideBefore(evento(join(dir, ".todo", "TODO.md")))
 
   assert.equal(decideSessionClose("/afuera", "session-end").action, "allow")
+})
+
+// ── last_commit: registración centralizada avanza el punto de referencia ────
+
+test("una registración centralizada estampa el HEAD; TODO.md no lo toca", () => {
+  const repo = mkdtempSync(join(tmpdir(), "todo-lc-"))
+  execFileSync("git", ["-C", repo, "init", "-q", "-b", "main"])
+  execFileSync("git", ["-C", repo, "commit", "--allow-empty", "-q", "-m", "uno"])
+  execFileSync("git", ["-C", repo, "remote", "add", "origin", "git@github.com:x/lc.git"])
+  const head = execFileSync("git", ["-C", repo, "log", "-1", "--format=%H"], { encoding: "utf8" }).trim()
+
+  mkdirSync(STORE, { recursive: true })
+  writeFileSync(join(STORE, "settings.json"), JSON.stringify({ central_repos: true }))
+  const dir = proyecto("lc-proy", "")
+  writeFileSync(join(dir, ".todo", "config.json"), JSON.stringify({ id: "lc-proy", name: "lc", origin_url: "git@github.com:x/lc.git" }))
+  writeFileSync(join(dir, ".todo", "config.local.json"), JSON.stringify({ origin_path: repo }))
+
+  try {
+    clearTouched()
+    openWindow()
+
+    // escribir TODO.md NO avanza el hash
+    decideBefore(evento(join(dir, ".todo", "TODO.md")))
+    assert.equal(readLastCommit("lc-proy"), "")
+
+    // registrar en DONE.md SÍ — con el HEAD del repo que registra
+    decideBefore({ ...evento(join(dir, ".todo", "DONE.md")), cwd: repo })
+    assert.equal(readLastCommit("lc-proy"), head)
+  } finally {
+    rmSync(repo, { recursive: true, force: true })
+  }
 })
