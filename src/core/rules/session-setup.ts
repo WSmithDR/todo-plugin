@@ -3,7 +3,7 @@ import { chmodSync, existsSync, lstatSync, mkdirSync, readlinkSync, renameSync, 
 import { join } from "node:path"
 import { ALLOW, advise, mergeDecisions, type Decision } from "../protocol.ts"
 import { PLUGIN_ROOT, storeBase, type Env } from "../paths.ts"
-import { list, mode, projectPath, type Project } from "../store.ts"
+import { adoptPending, list, mode, projectPath, type Project } from "../store.ts"
 import { markAdvisedOnce } from "../session-state.ts"
 import { rotateArchives } from "../archive.ts"
 import { daysSinceReview, oldestStarted, openItemTitles, readTodoFile } from "../todo-files.ts"
@@ -47,6 +47,21 @@ export function sessionSetup(ctx: SessionContext): Decision {
   // alcanzaba: ni la poda por año ni el recordatorio de triage. Son justamente
   // los proyectos que menos se abren, o sea donde más se acumula.
   if (!existsSync(join(ctx.cwd, ".todo"))) return storeSetup(ctx, today)
+
+  // La migración perezosa MORDIENDO: con central_repos activa, el primer
+  // SessionStart de un repo con .todo/ local lo adopta sin preguntar. No es un
+  // aviso que se pueda saltear: es la mudanza ya hecha.
+  if (existsSync(join(ctx.cwd, ".todo"))) {
+    const migrado = adoptPending(ctx.cwd, { env: ctx.env })
+    if (migrado !== null) {
+      return mergeDecisions([
+        storeSetup(ctx, today),
+        advise(`TODO-CENTRAL: este repo pasó al registro central (${migrado.dir}).
+Tu .todo/ local fue movido ahí y eliminado del repo: las tareas ya no viven junto al código.
+Las skills operan sobre el store desde ahora; no hay paso manual ni vuelta atrás salvo recrear el directorio.`),
+      ])
+    }
+  }
 
   const todo = readTodoFile(ctx.cwd, "TODO.md")
 

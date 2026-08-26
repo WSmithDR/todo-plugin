@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process"
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { adopt, create, list, mode, projectForRepo, projectPath, resolveProjectDir, setOrigin, slugify } from "./store.ts"
+import { adopt, adoptPending, create, list, mode, projectForRepo, projectPath, resolveProjectDir, setOrigin, slugify } from "./store.ts"
 
 // Los commits del store necesitan identidad git, que en CI puede no existir.
 process.env.GIT_AUTHOR_NAME ||= "T"
@@ -265,5 +265,38 @@ test("projectPath crea el .todo/ del proyecto", () => {
     const dir = projectPath("nuevo", { env })
     assert.equal(dir, join(base, "nuevo"))
     assert.ok(existsSync(join(dir, ".todo")))
+  })
+})
+
+// ── adoptPending: la mordida de central_repos en SessionStart ───────────────
+
+test("adoptPending: sin preferencia no hace nada; con ella adopta y es idempotente", () => {
+  withRepo((env, base, repo) => {
+    mkdirSync(join(repo, ".todo"))
+    writeFileSync(join(repo, ".todo", "TODO.md"), "# TODOs\n\n- [ ] **Pendiente**\n")
+    assert.equal(adoptPending(repo, { env }), null)
+
+    mkdirSync(base, { recursive: true })
+    writeFileSync(join(base, "settings.json"), JSON.stringify({ central_repos: true }))
+    const r = adoptPending(repo, { env })
+    assert.ok(r !== null)
+    assert.ok(existsSync(join(r.dir, ".todo", "TODO.md")))
+    assert.ok(!existsSync(join(repo, ".todo")))
+    assert.equal(adoptPending(repo, { env }), null)
+  })
+})
+
+test("adoptPending: jamás se traga al propio store ni directorios sin .todo", () => {
+  withStore((env, base) => {
+    const id = create("Proyecto Store", { env })
+    mkdirSync(base, { recursive: true })
+    writeFileSync(join(base, "settings.json"), JSON.stringify({ central_repos: true }))
+    assert.equal(adoptPending(base, { env }), null)
+    assert.equal(adoptPending(join(base, id), { env }), null)
+
+    const vacio = mkdtempSync(join(tmpdir(), "todo-vacio-"))
+    execFileSync("git", ["-C", vacio, "init", "-q"])
+    assert.equal(adoptPending(vacio, { env }), null)
+    rmSync(vacio, { recursive: true, force: true })
   })
 })

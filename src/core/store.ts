@@ -281,6 +281,9 @@ export function adopt(repoPath: string, name: string | undefined, opts: StoreOpt
       cpSync(join(local, file), join(dir, ".todo", file))
       rmSync(join(local, file))
     }
+    // config.json es metadata del régimen local: si queda, el .todo/ sobrevive
+    // vacío y resolveProjectDir seguiría creyendo que las tareas viven acá.
+    rmSync(join(local, "config.json"), { force: true })
     // El directorio queda si tenía algo más (config custom, etc.) — eso se deja
     // atrás a propósito. Si quedó vacío, fuera:
     if (readdirSync(local).length === 0) rmdirSync(local)
@@ -288,6 +291,28 @@ export function adopt(repoPath: string, name: string | undefined, opts: StoreOpt
 
   setOrigin(id, root, opts)
   return { id, dir }
+}
+
+/**
+ * La mordida de central_repos: si este cwd es un repo con `.todo/` local que
+ * todavía no tiene proyecto en el store, lo adopta AHORA, sin preguntar. Es lo
+ * que corre en SessionStart — la migración no se ofrece, pasa.
+ *
+ * null cuando no corresponde: preferencia apagada, dentro del propio store
+ * (nunca se traga a sí mismo), sin `.todo/` local, sin repo o ya adoptado.
+ */
+export function adoptPending(cwd: string, opts: StoreOptions = {}): { id: string; dir: string } | null {
+  if (!centralRepos(opts)) return null
+
+  const base = physical(storeBase(opts.env))
+  const here = physical(cwd)
+  if (here === base || here.startsWith(base + sep)) return null
+  if (!existsSync(join(here, ".todo"))) return null
+
+  const root = repoRoot(here)
+  if (root === "" || projectForRepo(root, opts) !== null) return null
+
+  return adopt(here, undefined, opts)
 }
 
 /**

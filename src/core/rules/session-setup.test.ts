@@ -1,6 +1,7 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
+import { execFileSync } from "node:child_process"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { GIT_HOOKS, sessionSetup } from "./session-setup.ts"
@@ -150,5 +151,32 @@ test("sin .git/ no intenta instalar nada", () => {
       assert.doesNotMatch(d.action === "advise" ? d.message : "", /TODO-SETUP/)
     },
     { git: false },
+  )
+})
+
+// ── central_repos: la migración no se ofrece, pasa ──────────────────────────
+
+test("central_repos: el primer SessionStart adopta el repo; el segundo ya opera sobre el store", () => {
+  process.env.GIT_AUTHOR_NAME ||= "T"
+  process.env.GIT_AUTHOR_EMAIL ||= "t@t.com"
+  process.env.GIT_COMMITTER_NAME ||= "T"
+  process.env.GIT_COMMITTER_EMAIL ||= "t@t.com"
+  withProject(
+    ({ cwd, pluginRoot, env }) => {
+      execFileSync("git", ["-C", cwd, "init", "-q"])
+      const base = join(env.XDG_DATA_HOME!, "todo")
+      mkdirSync(base, { recursive: true })
+      writeFileSync(join(base, "settings.json"), JSON.stringify({ central_repos: true }))
+
+      const msgDe = (d: ReturnType<typeof sessionSetup>): string =>
+        d.action === "allow" ? "" : d.message
+      const primera = sessionSetup({ cwd, pluginRoot, env })
+      assert.match(msgDe(primera), /TODO-CENTRAL/)
+      assert.ok(!existsSync(join(cwd, ".todo")))
+
+      const segunda = sessionSetup({ cwd, pluginRoot, env })
+      assert.doesNotMatch(msgDe(segunda), /TODO-CENTRAL/)
+    },
+    { config: true },
   )
 })
