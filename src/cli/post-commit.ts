@@ -6,9 +6,9 @@
 // va por stderr.
 import { execFileSync } from "node:child_process"
 import { existsSync, rmSync } from "node:fs"
-import { join } from "node:path"
 import { preCommitMarker } from "../core/git.ts"
 import { postCommitReview } from "../core/rules/post-commit.ts"
+import { resolveProjectDir } from "../core/store.ts"
 
 const cwd = process.cwd()
 
@@ -28,15 +28,25 @@ if (preCommitRan) rmSync(marker, { force: true })
 
 // Retroactivo: no solo este commit, todos los que no dejaron rastro desde el
 // último cierre. Si DONE.md nunca se tocó, se muestran los últimos 20.
-const lastRegistered = git("log", "-1", "--format=%H", "--", ".todo/DONE.md")
+const projectDir = resolveProjectDir(cwd)
+// ponytail: en repos centralizados DONE.md ya no tiene historial en este repo,
+// así que la lista retroactiva se reduce al commit corriente — la marca del
+// pre-commit sigue siendo quien delata el commit forzado. Volver a la lista
+// amplia si algún día el stamp vive en el store.
+const centralized = projectDir !== null && projectDir !== cwd
+const lastRegistered = centralized ? "" : git("log", "-1", "--format=%H", "--", ".todo/DONE.md")
 const range = lastRegistered === "" ? ["-20"] : [`${lastRegistered}..HEAD`]
+if (centralized) range.length = 0
+
+const unregistered =
+  range.length === 0 ? [] : git("log", "--oneline", "--no-merges", ...range).split("\n").filter((line) => line.length > 0)
 
 const decision = postCommitReview({
-  hasTodoDir: existsSync(join(cwd, ".todo")),
+  hasTodoDir: projectDir !== null,
   preCommitRan,
   reflogSubject: git("reflog", "-1", "--format=%gs"),
   subject: git("log", "-1", "--format=%s"),
-  unregistered: git("log", "--oneline", "--no-merges", ...range).split("\n").filter((line) => line.length > 0),
+  unregistered,
 })
 
 if (decision.action !== "allow") process.stderr.write(decision.message + "\n")

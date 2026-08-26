@@ -1,9 +1,9 @@
 import { ALLOW, advise, mergeDecisions, type Decision, type ToolEvent } from "./protocol.ts"
-import { guardEnabled, hasTodoDir, storeAvailable } from "./env.ts"
+import { guardEnabled, storeAvailable } from "./env.ts"
 import { isWindowOpen } from "./window.ts"
 import { currentBranch, currentHead, refLogStamp } from "./git.ts"
 import { editingContext, openItemTitles, readTodoFile } from "./todo-files.ts"
-import { projectForPath } from "./store.ts"
+import { projectForPath, resolveProjectDir } from "./store.ts"
 import {
   clearTouched,
   lastSeenHead,
@@ -68,7 +68,8 @@ export type CloseTrigger = "session-end" | "per-request"
  * "cerrá lo que quedó" es apurarte.
  */
 export function decideSessionClose(cwd: string, trigger: CloseTrigger = "session-end"): Decision {
-  if (!hasTodoDir(cwd)) return trigger === "session-end" ? storeSessionClose() : ALLOW
+  const dir = resolveProjectDir(cwd)
+  if (dir === null) return trigger === "session-end" ? storeSessionClose() : ALLOW
 
   if (trigger === "per-request") {
     const stamp = refLogStamp(cwd)
@@ -86,7 +87,7 @@ export function decideSessionClose(cwd: string, trigger: CloseTrigger = "session
 
   return sessionClose({
     hasTodoDir: true,
-    doing: openItemTitles(readTodoFile(cwd, "DOING.md")),
+    doing: openItemTitles(readTodoFile(dir, "DOING.md")),
     // Sin un HEAD previo esto es el primer anclaje, no un commit nuevo.
     headMoved: previo !== "" && previo !== head,
   })
@@ -121,7 +122,8 @@ proyectos no hay commits que lo delaten después.`,
 
 export function decideAfter(event: ToolEvent): Decision {
   const cwd = event.cwd
-  const todo = hasTodoDir(cwd)
+  const todoDir = resolveProjectDir(cwd)
+  const todo = todoDir !== null
 
   // El store solo se consulta si el comando falló y no hay `.todo/` local: es la
   // única combinación donde la respuesta cambia algo, y así no se paga un

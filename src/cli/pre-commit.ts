@@ -6,10 +6,11 @@
 // commit. Los dos verbos se mapean a exit 1; la diferencia es qué dice el
 // mensaje sobre si --no-verify corresponde.
 import { execFileSync } from "node:child_process"
-import { existsSync, readFileSync, writeFileSync } from "node:fs"
-import { join } from "node:path"
+import { writeFileSync } from "node:fs"
 import { preCommitMarker } from "../core/git.ts"
 import { openItemTitles, openItems, preCommitReview } from "../core/rules/pre-commit.ts"
+import { readTodoFile } from "../core/todo-files.ts"
+import { resolveProjectDir } from "../core/store.ts"
 
 const MAX_STAGED_SHOWN = 20
 const RECENT_COMMITS = 5
@@ -24,18 +25,12 @@ function git(...args: string[]): string {
   }
 }
 
-const read = (path: string): string => {
-  try {
-    return readFileSync(join(cwd, path), "utf8")
-  } catch {
-    return ""
-  }
-}
-
 const lines = (text: string): string[] => text.split("\n").filter((line) => line.length > 0)
 
+const projectDir = resolveProjectDir(cwd)
+
 const decision = preCommitReview({
-  hasTodoDir: existsSync(join(cwd, ".todo")),
+  hasTodoDir: projectDir !== null,
   staged: lines(git("diff", "--cached", "--name-only")).slice(0, MAX_STAGED_SHOWN),
   markedCheckboxes: lines(git("diff", "--cached", "-U0", "--", ".todo/TODO.md", ".todo/DOING.md")).filter((line) =>
     line.startsWith("+- [x]"),
@@ -43,8 +38,8 @@ const decision = preCommitReview({
   registeredWork: lines(
     git("diff", "--cached", "-U0", "--", ".todo/DONE.md", ".todo/DISCARDED.md"),
   ).filter((line) => line.startsWith("+- [x]") || line.startsWith("+- ~~")).length,
-  doing: openItemTitles(read(".todo/DOING.md")),
-  todoOpen: openItems(read(".todo/TODO.md")),
+  doing: openItemTitles(projectDir ? readTodoFile(projectDir, "DOING.md") : ""),
+  todoOpen: openItems(projectDir ? readTodoFile(projectDir, "TODO.md") : ""),
   recentCommits: lines(git("log", "--oneline", `-${RECENT_COMMITS}`)),
 })
 

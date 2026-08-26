@@ -1,7 +1,7 @@
-import { existsSync, readFileSync } from "node:fs"
+import { readFileSync } from "node:fs"
 import { join } from "node:path"
 import type { Env } from "./paths.ts"
-import { projectForPath } from "./store.ts"
+import { projectForPath, resolveProjectDir } from "./store.ts"
 
 /** Lectura y parseo de los archivos de `.todo/`. Nadie más los interpreta. */
 
@@ -42,7 +42,8 @@ export function editingContext(
   env?: Env,
 ): { dir: string; todo: OpenItem[]; doing: string[] } | null {
   const dir = (() => {
-    if (existsSync(join(cwd, ".todo"))) return cwd
+    const resolved = resolveProjectDir(cwd, env)
+    if (resolved !== null) return resolved
     for (const path of paths) {
       const project = projectForPath(path, { env })
       if (project) return project.dir
