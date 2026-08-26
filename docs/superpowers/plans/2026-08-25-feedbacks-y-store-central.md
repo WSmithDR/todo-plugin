@@ -968,6 +968,135 @@ Guardar con `engram_mem_save` (type: architecture, topic_key `todo-plugin/store-
 
 ---
 
+
+---
+
+### Task 6: `last_commit` — resucitar la lista retroactiva en repos centralizados
+
+**Problema:** la red de contención del post-commit ("¿estos commits resolvieron algo que nadie registró?") dependía del historial de DONE dentro del repo. Centralizadas las tareas, ese historial ya no existe y la lista quedó apagada (techo documentado): un commit forzado con --no-verify cuyo trabajo quedó sin registrar nunca más se reclama.
+
+**Diseño:** el proyecto del store guarda `last_commit` (universal, commiteado) = HEAD del repo al momento de la ÚLTIMA REGISTRACIÓN real (escritura de skill sobre DONE/DISCARDED de ese proyecto desde el propio repo). El post-commit centralizado calcula `last..HEAD` con ese hash en vez del historial local. Solo AVANZA cuando algo se registra de verdad — los commits forzados quedan listados hasta que alguien cierre la tarea.
+
+**Files:**
+- Modify: `src/core/store.ts`
+- Modify: `src/core/pipeline.ts`
+- Modify: `src/cli/post-commit.ts`
+- Test: `src/core/store.test.ts`, `src/core/pipeline.test.ts`
+
+**Interfaces:**
+- Produces:
+  - `setLastCommit(id, head, opts?)` — escribe `"last_commit"` en el config universal y commitea el store (tolerante, igual que setOrigin).
+  - `readLastCommit(id, opts?): string` — "" si no está.
+  - Reusa `projectForPath`, `projectForRepo`, `currentHead`; expone `repoRootOf(path)` (hoy privado).
+
+- [ ] **Step 1: Tests que fallan**
+
+```typescript
+// store.test.ts
+test("setLastCommit escribe y lee en el config universal", () => {
+  withStore((env, base) => {
+    const id = create("Con Hash", { env })
+    assert.equal(readLastCommit(id, { env }), "")
+    setLastCommit(id, "abc1234", { env })
+    assert.equal(readLastCommit(id, { env }), "abc1234")
+    // universal: quedó en config.json, no en el .local
+    const cfg = JSON.parse(readFileSync(join(base, id, ".todo", "config.json"), "utf8"))
+    assert.equal(cfg.last_commit, "abc1234")
+  })
+})
+```
+
+```typescript
+// pipeline.test.ts
+test("una registración centralizada avanza last_commit del proyecto", () => {
+  // fixture: repo git real con origin → proyecto adoptado; HEAD conocido.
+  // decidirBefore(event con path <store>/<id>/.todo/DONE.md, cwd=repo, allow)
+  // → config.json del proyecto gana last_commit == HEAD del repo
+  // y una escritura sobre TODO.md NO avanza el hash
+})
+```
+
+- [ ] **Step 2: Verificar fallo** — `node --test src/core/store.test.ts src/core/pipeline.test.ts`
+
+- [ ] **Step 3: Implementar en `src/core/store.ts`**
+
+```typescript
+/** El HEAD del repo hasta donde están registradas las tareas. Universal:
+ * el hash vale en cualquier clon del mismo remote. */
+export function setLastCommit(id: string, head: string, opts: StoreOptions = {}): void {
+  const base = storeBase(opts.env)
+  const configPath = join(base, id, ".todo", "config.json")
+  try {
+    const config = JSON.parse(readFileSync(configPath, "utf8")) as Record<string, unknown>
+    if (config.last_commit === head) return
+    config.last_commit = head
+    writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n")
+    execFileSync("git", ["-C", base, "add", join(id, ".todo", "config.json")], QUIET)
+    execFileSync("git", ["-C", base, "commit", "-q", "-m", `todo: ${id} registrada hasta ${head.slice(0, 7)}`], QUIET)
+  } catch {
+    // Sin identidad git o sin cambios: el dato ya quedó en disco.
+  }
+}
+
+export function readLastCommit(id: string, opts: StoreOptions = {}): string {
+  try {
+    const raw = JSON.parse(readFileSync(join(storeBase(opts.env), id, ".todo", "config.json"), "utf8")) as {
+      last_commit?: string
+    }
+    return typeof raw.last_commit === "string" ? raw.last_commit : ""
+  } catch {
+    return ""
+  }
+}
+```
+
+Y exponer el helper privado como `export function repoRootOf(path: string): string { return repoRoot(path) }`.
+
+- [ ] **Step 4: Estampar en `decideBefore` (`src/core/pipeline.ts`)**
+
+Dentro del bloque `if (decision.action === "allow")` que ya recorre `event.paths`:
+
+```typescript
+for (const path of event.paths) {
+  if (!path.includes(".todo")) continue
+  const project = projectForPath(path)
+  if (project) {
+    rememberTouched(project.dir)
+    // Registración real desde el propio repo → el punto de referencia del
+    // post-commit avanza. Solo DONE/DISCARDED cuentan como "registrado hasta acá".
+    if (/[/\\](DONE|DISCARDED)(-[0-9]{4})?\.md$/.test(path)) {
+      const root = repoRootOf(event.cwd)
+      if (root !== "" && projectForRepo(root)?.id === project.id) {
+        setLastCommit(project.id, currentHead(root))
+      }
+    }
+  }
+}
+```
+
+- [ ] **Step 5: Leer en el post-commit centralizado (`src/cli/post-commit.ts`)**
+
+Reemplazar el techo actual (`centralized ? "" : git log ...`) por:
+
+```typescript
+let lastRegistered = ""
+if (centralized) {
+  const project = projectForRepo(repoRootOf(cwd))
+  lastRegistered = project ? readLastCommit(project.id) : ""
+} else {
+  lastRegistered = git("log", "-1", "--format=%H", "--", ".todo/DONE.md")
+}
+const range = lastRegistered === "" ? ["-20"] : [`${lastRegistered}..HEAD`]
+```
+
+Sin `last_commit` todavía (proyecto recién adoptado), cae a `-20`: la lista amplia de siempre hasta la primera registración. Actualizar el comentario ponytail — el techo desapareció.
+
+- [ ] **Step 6: Suite completa + typecheck, ambos runtimes** — `node --test 'src/**/*.test.ts' && bun test src/ && npx tsc --noEmit`
+
+- [ ] **Step 7: Commit** — `feat(post-commit): last_commit resucita la lista retroactiva en repos centralizados`
+
+- [ ] **Step 8: CLAUDE.md** — borrar el techo documentado del párrafo de centralización y reemplazarlo por una línea sobre last_commit.
+
 ## Self-review
 
 1. **Spec coverage:** los 4 feedbacks tienen tarea (T1, T2, T3, T4+T5); la migración retroactiva pedida explícitamente por el usuario es T4c + T5. El sexto feedback (`todo-done-salteado-checkboxes-a-mano`) ya está aplicado desde 2026-07-04 y `todo-config-repo-centric` se cerró al inicio de esta sesión — fuera del plan.
