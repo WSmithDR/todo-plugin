@@ -47,15 +47,59 @@ function repoRoot(path: string): string {
   }
 }
 
-function readOrigin(id: string, opts: StoreOptions): string {
+/** El remote del repo, o "" si no tiene. Es la identidad máquina-agnóstica. */
+export function repoUrl(repoPath: string): string {
   try {
-    const raw = JSON.parse(readFileSync(join(storeBase(opts.env), id, ".todo", "config.json"), "utf8")) as {
-      origin?: string
-    }
-    return typeof raw.origin === "string" ? physical(raw.origin) : ""
+    return execFileSync("git", ["-C", repoPath, "remote", "get-url", "origin"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim()
   } catch {
     return ""
   }
+}
+
+type Origin = { url: string; path: string }
+
+/**
+ * Dónde vive este proyecto en ESTA máquina. Lo universal va en config.json
+ * (commiteado); lo que solo vale acá —el path del clon— en config.local.json,
+ * ignorado por el store vía `*.local.json`. Un store sin remote sincroniza
+ * igual: cada máquina regenera su .local y listo.
+ */
+function readOrigin(id: string, opts: StoreOptions): Origin {
+  const base = storeBase(opts.env)
+  let url = ""
+  let path = ""
+  try {
+    const universal = JSON.parse(readFileSync(join(base, id, ".todo", "config.json"), "utf8")) as {
+      origin?: string
+      origin_url?: string
+    }
+    if (typeof universal.origin_url === "string") url = universal.origin_url
+  } catch {
+    // Sin config no hay origen; el path de abajo también puede fallar.
+  }
+  try {
+    const local = JSON.parse(readFileSync(join(base, id, ".todo", "config.local.json"), "utf8")) as {
+      origin_path?: string
+    }
+    if (typeof local.origin_path === "string") path = physical(local.origin_path)
+  } catch {
+    // Otra máquina sin adoptar todavía: queda solo la URL.
+  }
+  // Formato legado (pre-multi-PC): origin era el path, directo en config.json.
+  if (url === "" && path === "") {
+    try {
+      const legacy = JSON.parse(readFileSync(join(base, id, ".todo", "config.json"), "utf8")) as {
+        origin?: string
+      }
+      if (typeof legacy.origin === "string") path = physical(legacy.origin)
+    } catch {
+      // ídem
+    }
+  }
+  return { url, path }
 }
 
 /**
@@ -204,19 +248,36 @@ export function create(name: string, opts: StoreOptions = {}): string {
  */
 export function setOrigin(id: string, repoRootPath: string, opts: StoreOptions = {}): void {
   const base = storeBase(opts.env)
-  const origin = physical(repoRootPath)
-  const configPath = join(base, id, ".todo", "config.json")
+  const todoDir = join(base, id, ".todo")
+  const configPath = join(todoDir, "config.json")
+  const localPath = join(todoDir, "config.local.json")
+
   const config = JSON.parse(readFileSync(configPath, "utf8")) as Record<string, unknown>
-  const current = typeof config.origin === "string" ? physical(config.origin) : ""
-  if (current === origin) return
-  config.origin = origin
+  const url = repoUrl(repoRootPath)
+  const previo = readOrigin(id, opts)
+  if (previo.url === url && previo.path === physical(repoRootPath)) return
+
+  // Universal: viaja con el store. Legado se limpia si estaba.
+  delete config.origin
+  if (url !== "") config.origin_url = url
   writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n")
+
+  // Local por máquina: nunca se versiona.
+  writeFileSync(localPath, JSON.stringify({ origin_path: physical(repoRootPath) }, null, 2) + "\n")
+  ensureStoreGitignore(base)
+
   try {
     execFileSync("git", ["-C", base, "add", join(id, ".todo", "config.json")], QUIET)
-    execFileSync("git", ["-C", base, "commit", "-q", "-m", `todo: ${id} ← ${basename(config.origin as string)}`], QUIET)
+    execFileSync("git", ["-C", base, "commit", "-q", "-m", `todo: ${id} ← ${url !== "" ? url : basename(physical(repoRootPath))}`], QUIET)
   } catch {
     // El store puede no tener identidad git; el dato ya quedó escrito.
   }
+}
+
+/** Los .local.json son de esta máquina: ignorados en el repo del store. */
+function ensureStoreGitignore(base: string): void {
+  const gitignore = join(base, ".gitignore")
+  if (!existsSync(gitignore)) writeFileSync(gitignore, "*.local.json\n")
 }
 
 /** El proyecto cuyo repo de origen es este. Exige la preferencia central_repos. */
@@ -224,7 +285,15 @@ export function projectForRepo(root: string, opts: StoreOptions = {}): Project |
   if (!centralRepos(opts)) return null
   const here = physical(root)
   if (here === "") return null
-  return list(opts).find((project) => readOrigin(project.id, opts) === here) ?? null
+  const url = repoUrl(here)
+  return (
+    list(opts).find((project) => {
+      const origin = readOrigin(project.id, opts)
+      // Primero la identidad universal (viaja entre máquinas); el path es el
+      // fallback para repos sin remote.
+      return (url !== "" && origin.url === url) || (here !== "" && origin.path === here)
+    }) ?? null
+  )
 }
 
 /**
@@ -255,7 +324,12 @@ export function adopt(repoPath: string, name: string | undefined, opts: StoreOpt
   const root = repoRoot(repoPath)
   if (root === "") throw new Error(`no es un repo git: ${repoPath}`)
 
-  const existing = list(opts).find((project) => readOrigin(project.id, opts) === root)
+  // Mismo predicado que projectForRepo: URL primero (otra máquina), path después.
+  const url = repoUrl(root)
+  const existing = list(opts).find((project) => {
+    const origin = readOrigin(project.id, opts)
+    return (url !== "" && origin.url === url) || origin.path === root
+  })
   const id = existing?.id ?? create(name ?? basename(root), opts)
   const dir = join(storeBase(opts.env), id)
   mkdirSync(join(dir, ".todo"), { recursive: true })
@@ -342,4 +416,38 @@ export function projectPath(id: string, opts: StoreOptions = {}): string {
   const dir = join(storeBase(opts.env), id)
   mkdirSync(join(dir, ".todo"), { recursive: true })
   return dir
+}
+
+/**
+ * Pull + push del store contra SU remote, si tiene. Es best-effort y silencioso:
+ * sin remote o sin red no hace nada — el store local siempre es la fuente de
+ * verdad de esta sesión. Se llama al iniciar sesión (pull antes de leer nada)
+ * y al cerrarla (push de lo que las skills commitearon).
+ */
+export function syncStore(opts: StoreOptions = {}): void {
+  const base = storeBase(opts.env)
+  if (!existsSync(join(base, ".git"))) return
+
+  let hasRemote = false
+  try {
+    hasRemote =
+      execFileSync("git", ["-C", base, "remote", "get-url", "origin"], {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      }).trim() !== ""
+  } catch {
+    return
+  }
+  if (!hasRemote) return
+
+  try {
+    execFileSync("git", ["-C", base, "pull", "--rebase", "--autostash", "--quiet", "origin"], QUIET)
+  } catch {
+    // Sin red o con conflicto: se sigue con lo local. El próximo intento lo lleva.
+  }
+  try {
+    execFileSync("git", ["-C", base, "push", "--quiet", "origin", "HEAD"], QUIET)
+  } catch {
+    // ídem — el pull de la próxima sesión recoge lo que hoy no pudo subir.
+  }
 }

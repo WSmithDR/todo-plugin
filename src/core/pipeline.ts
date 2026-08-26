@@ -3,7 +3,7 @@ import { guardEnabled, storeAvailable } from "./env.ts"
 import { isWindowOpen } from "./window.ts"
 import { currentBranch, currentHead, refLogStamp } from "./git.ts"
 import { editingContext, openItemTitles, readTodoFile } from "./todo-files.ts"
-import { projectForPath, resolveProjectDir } from "./store.ts"
+import { projectForPath, resolveProjectDir, syncStore } from "./store.ts"
 import {
   clearTouched,
   lastSeenHead,
@@ -106,6 +106,7 @@ function storeSessionClose(): Decision {
     .filter(({ doing }) => doing.length > 0)
 
   clearTouched()
+  syncStore()
   if (pendientes.length === 0) return ALLOW
 
   const detalle = pendientes

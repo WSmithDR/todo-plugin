@@ -3,7 +3,7 @@ import { chmodSync, existsSync, lstatSync, mkdirSync, readlinkSync, renameSync, 
 import { join } from "node:path"
 import { ALLOW, advise, mergeDecisions, type Decision } from "../protocol.ts"
 import { PLUGIN_ROOT, storeBase, type Env } from "../paths.ts"
-import { adoptPending, list, mode, projectPath, type Project } from "../store.ts"
+import { adoptPending, list, mode, projectPath, syncStore, type Project } from "../store.ts"
 import { markAdvisedOnce } from "../session-state.ts"
 import { rotateArchives } from "../archive.ts"
 import { daysSinceReview, oldestStarted, openItemTitles, readTodoFile } from "../todo-files.ts"
@@ -54,6 +54,8 @@ export function sessionSetup(ctx: SessionContext): Decision {
   if (existsSync(join(ctx.cwd, ".todo"))) {
     const migrado = adoptPending(ctx.cwd, { env: ctx.env })
     if (migrado !== null) {
+      // La mudanza ya está commiteada en el store: subila ya, no esperes al cierre.
+      syncStore({ env: ctx.env })
       return mergeDecisions([
         storeSetup(ctx, today),
         advise(`TODO-CENTRAL: este repo pasó al registro central (${migrado.dir}).
@@ -94,6 +96,8 @@ Las skills operan sobre el store desde ahora; no hay paso manual ni vuelta atrá
 function storeSetup(ctx: SessionContext, today: Date): Decision {
   const env = ctx.env
 
+  // Antes de mirar NADA: traer lo que otra máquina cerró. Sin remote es no-op.
+  syncStore({ env: ctx.env })
   // Solo fuera de un repo. Un repo sin `.todo/` es un proyecto de código ajeno a
   // todo esto: recordarle ahí las tareas de un sitio WordPress es exactamente el
   // aviso fuera de lugar que el modelo aprende a saltear.

@@ -1,10 +1,10 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
 import { execFileSync } from "node:child_process"
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { adopt, adoptPending, create, list, mode, projectForRepo, projectPath, resolveProjectDir, setOrigin, slugify } from "./store.ts"
+import { adopt, adoptPending, create, list, mode, projectForRepo, projectPath, resolveProjectDir, setOrigin, slugify, syncStore } from "./store.ts"
 
 // Los commits del store necesitan identidad git, que en CI puede no existir.
 process.env.GIT_AUTHOR_NAME ||= "T"
@@ -298,5 +298,84 @@ test("adoptPending: jamás se traga al propio store ni directorios sin .todo", (
     execFileSync("git", ["-C", vacio, "init", "-q"])
     assert.equal(adoptPending(vacio, { env }), null)
     rmSync(vacio, { recursive: true, force: true })
+  })
+})
+
+// ── identidad universal (URL) vs local (path) ───────────────────────────────
+
+test("setOrigin separa universal de local; el store ignora los .local.json", () => {
+  withRepo((env, base, repo) => {
+    execFileSync("git", ["-C", repo, "remote", "add", "origin", "https://github.com/x/repoy.git"])
+    const id = create("Con URL", { env })
+    setOrigin(id, repo, { env })
+
+    const cfg = JSON.parse(readFileSync(join(base, id, ".todo", "config.json"), "utf8"))
+    assert.equal(cfg.origin_url, "https://github.com/x/repoy.git")
+    assert.equal(cfg.origin, undefined)
+
+    const local = JSON.parse(readFileSync(join(base, id, ".todo", "config.local.json"), "utf8"))
+    assert.equal(local.origin_path, realpathSync(repo))
+    assert.ok(readFileSync(join(base, ".gitignore"), "utf8").includes("*.local.json"))
+  })
+})
+
+test("projectForRepo matchea por remote URL desde OTRO clon — otra máquina", () => {
+  withRepo((env, base, repo) => {
+    execFileSync("git", ["-C", repo, "remote", "add", "origin", "git@github.com:x/y.git"])
+    mkdirSync(base, { recursive: true })
+    writeFileSync(join(base, "settings.json"), JSON.stringify({ central_repos: true }))
+    const id = create("Multi PC", { env })
+    setOrigin(id, repo, { env })
+
+    const otraPc = mkdtempSync(join(tmpdir(), "otra-pc-"))
+    execFileSync("git", ["-C", otraPc, "init", "-q"])
+    execFileSync("git", ["-C", otraPc, "remote", "add", "origin", "git@github.com:x/y.git"])
+    assert.equal(projectForRepo(otraPc, { env })?.id, id)
+    rmSync(otraPc, { recursive: true, force: true })
+  })
+})
+
+test("adopt reutiliza el proyecto por URL — el segundo clon no duplica nada", () => {
+  withRepo((env, base, repoA) => {
+    execFileSync("git", ["-C", repoA, "remote", "add", "origin", "git@github.com:x/dup.git"])
+    mkdirSync(base, { recursive: true })
+    writeFileSync(join(base, "settings.json"), JSON.stringify({ central_repos: true }))
+    mkdirSync(join(repoA, ".todo"))
+    writeFileSync(join(repoA, ".todo", "TODO.md"), "- [ ] **Uno**\n")
+    const r1 = adopt(repoA, undefined, { env })
+
+    const clonB = mkdtempSync(join(tmpdir(), "clon-b-"))
+    execFileSync("git", ["-C", clonB, "init", "-q"])
+    execFileSync("git", ["-C", clonB, "remote", "add", "origin", "git@github.com:x/dup.git"])
+    const r2 = adopt(clonB, undefined, { env })
+
+    assert.equal(r2.id, r1.id)
+    assert.equal(list({ env }).length, 1)
+    const local = JSON.parse(
+      readFileSync(join(base, r1.id, ".todo", "config.local.json"), "utf8"),
+    )
+    assert.equal(local.origin_path, realpathSync(clonB))
+    rmSync(clonB, { recursive: true, force: true })
+  })
+})
+
+
+test("storeSync: sin remote es un no-op silencioso; con remoto pelado empuja de verdad", () => {
+  withStore((env, base) => {
+    // sin remote, ni siquiera con commits locales:
+    create("Sin Remoto", { env })
+    execFileSync("git", ["-C", base, "commit", "-q", "--allow-empty", "-m", "nada"], { stdio: "ignore" })
+    syncStore({ env })
+
+    // con remote pelado: el push aterriza el historial
+    const remoto = mkdtempSync(join(tmpdir(), "remoto-"))
+    execFileSync("git", ["init", "-q", "--bare", join(remoto, "store.git")])
+    execFileSync("git", ["-C", base, "remote", "add", "origin", join(remoto, "store.git")])
+    syncStore({ env })
+    const head = execFileSync("git", ["-C", join(remoto, "store.git"), "log", "-1", "--format=%s"], {
+      encoding: "utf8",
+    }).trim()
+    assert.ok(head.length > 0)
+    rmSync(remoto, { recursive: true, force: true })
   })
 })
