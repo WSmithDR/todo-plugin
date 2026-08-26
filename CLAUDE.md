@@ -118,6 +118,19 @@ tienen un `.todo/` local. En su lugar, el plugin mantiene un registro central:
 proyecto. Al ejecutar un skill fuera de un repo, se elige el proyecto desde un menú
 (o se crea uno nuevo). Identidad = nombre + id; no se crean archivos en el cwd.
 
+**Centralización optativa de los repos** (`central_repos` en
+`~/.local/share/todo/settings.json`): con la preferencia activa, `mode()` reporta
+`nonrepo` también dentro de repos git — todas las habilidades reusan el flujo de
+menú de proyectos y las tareas viven en el store, no junto al código. Cada repo
+queda amarrado a UN proyecto vía el campo `"origin"` de su `config.json`
+(`projectForRepo`). La mudanza es `todo-store.sh adopt [<ruta>]`: mueve el
+`.todo/` local al store, registra el origen y borra el local — idempotente por
+repo. Mientras exista `.todo/` local, gana el local: la migración es reversible
+volviendo a crear el directorio. Techo conocido: en repos centralizados, el
+post-commit pierde la lista retroactiva de commits sin registrar (DONE.md ya no
+tiene historial en el repo); la marca del pre-commit sigue delatando el commit
+forzado.
+
 **SessionStart también los cubre** (`storeSetup` en `session-setup.ts`), y solo
 **fuera de un repo**: recorre los proyectos del store, rota sus archivos por año en
 silencio —commiteando, porque el store se versiona solo— y junta en UN aviso los que

@@ -43,6 +43,50 @@ MODE=$("${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" mode)
 echo "$MODE"
 ```
 
+Además, informar el estado de la centralización y ofrecerla:
+
+```bash
+cat ~/.local/share/todo/settings.json 2>/dev/null || echo "{}"
+```
+
+Si `central_repos` no es `true`, ofrecer con `AskUserQuestion`:
+
+```
+question: "¿Centralizar también los repos git? Su .todo/ viviría en el store (~/.local/share/todo) en vez de junto al código."
+header: "Store central"
+options:
+  - label: "Sí — centralizar y migrar este repo"
+    description: "Activa central_repos y muda el .todo/ local de ESTE repo al store con todo su contenido."
+  - label: "Sí — centralizar de ahora en más"
+    description: "Activa central_repos; los repos existentes migran cuando se ejecute todo-store.sh adopt."
+  - label: "No — dejar como está"
+```
+
+- **Activar** (en ambas opciones afirmativas):
+
+```bash
+python3 - <<EOF
+import json, os
+base = os.path.expanduser("~/.local/share/todo")
+os.makedirs(base, exist_ok=True)
+p = os.path.join(base, "settings.json")
+s = {}
+if os.path.exists(p):
+    s = json.load(open(p))
+s["central_repos"] = True
+json.dump(s, open(p, "w"), indent=2)
+print(f"OK: {p}")
+EOF
+```
+
+- **Opción "migrar este repo"** — solo aplica si `MODE` es `repo` (en `nonrepo` ya estás en el store); ejecutar además:
+
+```bash
+"${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" adopt "$(pwd)"
+```
+
+Informar el `<id>` y la ruta del store impresos. Aclarar que el `.todo/` local fue movido (borrado del repo) y que los cambios del store quedaron commiteados ahí.
+
 **Si `MODE` es `repo`**: continuar en el paso 1 — la configuración es por proyecto y vive en `.todo/config.json` local.
 
 **Si `MODE` es `nonrepo`**: `gitignore_todo` no aplica (el store es privado y ya nace con config válido), pero acá se dan de alta los proyectos sin repo. Preguntar con `AskUserQuestion`:
@@ -65,7 +109,7 @@ ID=$("${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" create "<nombr
 "${TODO_PLUGIN_ROOT:-$CLAUDE_PLUGIN_ROOT}/bin/todo-store.sh" path "$ID"
 ```
 
-Confirmar al usuario con el id y la ruta impresa (ahí viven sus archivos).
+Confirmar al usuario con el id y la ruta impresa (ahí viven sus archivos) y terminar.
 
 - **Ver existentes**:
 
