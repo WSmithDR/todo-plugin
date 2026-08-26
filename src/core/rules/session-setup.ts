@@ -3,10 +3,11 @@ import { chmodSync, existsSync, lstatSync, mkdirSync, readlinkSync, renameSync, 
 import { join } from "node:path"
 import { ALLOW, advise, mergeDecisions, type Decision } from "../protocol.ts"
 import { PLUGIN_ROOT, storeBase, type Env } from "../paths.ts"
-import { adoptPending, list, mode, projectPath, syncStore, type Project } from "../store.ts"
+import { adoptPending, list, mode, originRepoPath, projectPath, syncStore, type Project } from "../store.ts"
+import { itemsOnMergedBranches, mergedBranches } from "../merged-branches.ts"
 import { markAdvisedOnce } from "../session-state.ts"
 import { rotateArchives } from "../archive.ts"
-import { daysSinceReview, oldestStarted, openItemTitles, readTodoFile } from "../todo-files.ts"
+import { daysSinceReview, oldestStarted, openItemTitles, openItems, readTodoFile } from "../todo-files.ts"
 import { staleTodo } from "./stale-todo.ts"
 
 export type SessionContext = {
@@ -136,6 +137,20 @@ function storeSetup(ctx: SessionContext, today: Date): Decision {
     const trabada = oldestStarted(readTodoFile(dir, "DOING.md"), today)
     if (trabada !== null && trabada.days >= STUCK_DAYS) {
       motivos.push(`"${trabada.title}" en curso hace ${trabada.days} días`)
+    }
+
+    // Ramas mergeadas con tarea abierta: el arreglo ya entró a main y DOING
+    // sigue diciendo "en curso". Aviso, nunca cierre automático — quien decide
+    // si la tarea quedó completa es quien la hizo.
+    const repo = originRepoPath(project.id, { env })
+    if (repo !== "" && existsSync(repo)) {
+      const hits = itemsOnMergedBranches(
+        [...openItems(readTodoFile(dir, "TODO.md")), ...openItems(readTodoFile(dir, "DOING.md"))],
+        mergedBranches(repo),
+      )
+      for (const { title, branch } of hits.slice(0, 4)) {
+        motivos.push(`"${title}" — su rama ${branch} ya está mergeada: ¿cerramos con todo-done?`)
+      }
     }
 
     if (motivos.length === 0) continue

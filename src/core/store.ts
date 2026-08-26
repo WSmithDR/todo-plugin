@@ -483,3 +483,8 @@ export function readLastCommit(id: string, opts: StoreOptions = {}): string {
 export function repoRootOf(path: string): string {
   return repoRoot(path)
 }
+
+/** El repo de ESTA máquina que alimenta el proyecto (config.local.json), o "". */
+export function originRepoPath(id: string, opts: StoreOptions = {}): string {
+  return readOrigin(id, opts).path
+}

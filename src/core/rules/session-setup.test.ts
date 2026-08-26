@@ -180,3 +180,50 @@ test("central_repos: el primer SessionStart adopta el repo; el segundo ya opera 
     { config: true },
   )
 })
+
+// ── ramas mergeadas con tarea abierta: aviso, no cierre ─────────────────────
+
+test("store: rama mergeada con item abierto → aviso de cierre, una vez por día", () => {
+  process.env.GIT_AUTHOR_NAME ||= "T"
+  process.env.GIT_AUTHOR_EMAIL ||= "t@t.com"
+  process.env.GIT_COMMITTER_NAME ||= "T"
+  process.env.GIT_COMMITTER_EMAIL ||= "t@t.com"
+
+  const dir = mkdtempSync(join(tmpdir(), "todo-merged-setup-"))
+  try {
+    const repo = join(dir, "repo")
+    execFileSync("git", ["init", "-q", "-b", "main", repo])
+    const g = (...a: string[]) => execFileSync("git", ["-C", repo, ...a], { stdio: "ignore" })
+    execFileSync("git", ["-C", repo, "-c", "user.email=t@t.com", "-c", "user.name=T", "commit", "--allow-empty", "-q", "-m", "base"])
+    g("checkout", "-q", "-b", "feat/estructura")
+    execFileSync("git", ["-C", repo, "-c", "user.email=t@t.com", "-c", "user.name=T", "commit", "--allow-empty", "-q", "-m", "w"])
+    g("checkout", "-q", "main")
+    g("merge", "-q", "--no-ff", "feat/estructura", "-m", "merge")
+
+    // proyecto del store adoptado hacia ese repo
+    const env = { HOME: join(dir, "home"), XDG_DATA_HOME: join(dir, "data"), XDG_CACHE_HOME: join(dir, "cache") }
+    mkdirSync(join(env.XDG_DATA_HOME!, "todo"), { recursive: true })
+    writeFileSync(join(env.XDG_DATA_HOME!, "todo", "settings.json"), JSON.stringify({ central_repos: true }))
+    execFileSync("bin/todo-store.sh", ["create", "Eminat"], {
+      cwd: undefined,
+      env: { ...process.env, ...env },
+      stdio: "ignore",
+    })
+    const id = execFileSync("bin/todo-store.sh", ["list"], {
+      env: { ...process.env, ...env },
+      encoding: "utf8",
+    }).split("\t")[0]
+    const projDir = join(env.XDG_DATA_HOME!, "todo", id)
+    writeFileSync(join(projDir, ".todo", "config.local.json"), JSON.stringify({ origin_path: repo }))
+    writeFileSync(
+      join(projDir, ".todo", "DOING.md"),
+      '- [ ] **Estructura organizacional** — en curso en feat/estructura\n',
+    )
+
+    const d = sessionSetup({ cwd: join(dir, "afuera"), pluginRoot: fakePluginRoot(dir), env })
+    assert.match(d.action === "allow" ? "" : d.message, /feat\/estructura.*mergeada|mergeada.*todo-done/s)
+    assert.ok(!existsSync(join(projDir, ".todo", "DOING.md")) === false) // NO se cierra sola
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
