@@ -1,4 +1,4 @@
-import { execFileSync, type ExecFileSyncOptions } from "node:child_process"
+import { execFileSync, spawn, type ExecFileSyncOptions } from "node:child_process"
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmdirSync, rmSync, writeFileSync } from "node:fs"
 import { join, basename, sep } from "node:path"
 import { storeBase, type Env } from "./paths.ts"
@@ -461,6 +461,38 @@ export function syncStore(opts: StoreOptions = {}): void {
   } catch {
     // ídem — el pull de la próxima sesión recoge lo que hoy no pudo subir.
   }
+}
+
+/**
+ * El mismo sync, pero sin esperar a la red: desprende un proceso y vuelve al
+ * instante.
+ *
+ * `SessionEnd` no tolera los ~3s del pull+push contra GitHub: Claude Code corta
+ * el hook mientras cierra la sesión y sale como "Hook cancelled" — el push nunca
+ * ocurría. Y si git se queda esperando una credencial, el bloqueo es infinito;
+ * de ahí BatchMode y GIT_TERMINAL_PROMPT=0.
+ *
+ * ponytail: el proceso hijo es `sh` porque son dos comandos en orden. El `;`
+ * (no `&&`) es a propósito: replica el best-effort del sync sincrónico, donde un
+ * pull fallido no cancela el push.
+ */
+export function syncStoreDetached(opts: StoreOptions = {}): void {
+  const base = storeBase(opts.env)
+  if (!existsSync(join(base, ".git"))) return
+
+  spawn(
+    "sh",
+    [
+      "-c",
+      'git -C "$0" pull --rebase --autostash --quiet origin; git -C "$0" push --quiet origin HEAD',
+      base,
+    ],
+    {
+      detached: true,
+      stdio: "ignore",
+      env: { ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_SSH_COMMAND: "ssh -o BatchMode=yes" },
+    },
+  ).unref()
 }
 
 /** El HEAD del repo hasta donde están registradas las tareas. Universal:

@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process"
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { adopt, adoptPending, create, list, mode, projectForRepo, projectPath, readLastCommit, resolveProjectDir, setLastCommit, setOrigin, slugify, syncStore } from "./store.ts"
+import { adopt, adoptPending, create, list, mode, projectForRepo, projectPath, readLastCommit, resolveProjectDir, setLastCommit, setOrigin, slugify, syncStore, syncStoreDetached } from "./store.ts"
 
 // Los commits del store necesitan identidad git, que en CI puede no existir.
 process.env.GIT_AUTHOR_NAME ||= "T"
@@ -376,6 +376,34 @@ test("storeSync: sin remote es un no-op silencioso; con remoto pelado empuja de 
       encoding: "utf8",
     }).trim()
     assert.ok(head.length > 0)
+    rmSync(remoto, { recursive: true, force: true })
+  })
+})
+
+// El sync de SessionEnd: vuelve YA (si esperara a la red, el CLI corta el hook)
+// y el push aterriza igual, en el proceso desprendido.
+test("syncStoreDetached: vuelve al instante y el push llega igual", () => {
+  withStore((env, base) => {
+    create("Con Remoto", { env })
+    const remoto = mkdtempSync(join(tmpdir(), "remoto-"))
+    const bare = join(remoto, "store.git")
+    execFileSync("git", ["init", "-q", "--bare", bare])
+    execFileSync("git", ["-C", base, "remote", "add", "origin", bare])
+
+    const t0 = Date.now()
+    syncStoreDetached({ env })
+    assert.ok(Date.now() - t0 < 300, "no puede bloquear esperando a git")
+
+    const deadline = Date.now() + 10_000
+    let llego = false
+    while (Date.now() < deadline && !llego) {
+      try {
+        llego = execFileSync("git", ["-C", bare, "log", "-1", "--format=%s"], { encoding: "utf8" }).trim() !== ""
+      } catch {
+        execFileSync("sleep", ["0.1"])
+      }
+    }
+    assert.ok(llego, "el push desprendido nunca aterrizó")
     rmSync(remoto, { recursive: true, force: true })
   })
 })
