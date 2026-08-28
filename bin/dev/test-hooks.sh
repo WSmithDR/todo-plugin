@@ -164,6 +164,43 @@ result=$(run_in_tmpdir "
 ")
 [ "$result" = "OK" ] && _pass "pre-commit encadena el .local y aborta si falla" || _fail "cadena pre-commit → $result"
 
+# El registro del trabajo puede no pasar NUNCA por el índice: con .todo/ gitignoreado
+# (o viviendo en el store central) DONE.md no se stagea, y el gate quedaba sin
+# moneda. Se mide contra el disco: DONE.md más nuevo que el último commit = registrado.
+result=$(run_in_tmpdir "
+    git init -q && git config user.email 't@t.com' && git config user.name 'T'
+    mkdir -p .todo .git/hooks
+    printf '# TODO\n\n- [ ] **Una tarea** — abierta\n' > .todo/TODO.md
+    printf '.todo/\n' > .gitignore
+    git add .gitignore && git commit -q --no-verify -m init
+    printf '# Completados\n\n- [x] **Algo** — cerrado acá\n' > .todo/DONE.md
+    ln -sf '$REPO_ROOT/bin/hooks/pre-commit.sh' .git/hooks/pre-commit
+    echo x > f.txt && git add f.txt
+    out=\$(git commit -m 'fix: algo' 2>&1); rc=\$?
+    [ \$rc -eq 0 ] && echo OK || echo \"bloqueó igual: \$out\"
+")
+[ "$result" = "OK" ] && _pass "DONE.md gitignoreado y más nuevo que HEAD → allow" || _fail "registro en disco → $result"
+
+# La otra mitad: un DONE.md viejo no es registro de ESTE commit — si no, el allow
+# quedaría pegado para siempre y el gate no volvería a pedir nada.
+result=$(run_in_tmpdir "
+    git init -q && git config user.email 't@t.com' && git config user.name 'T'
+    mkdir -p .todo .git/hooks
+    printf '# TODO\n\n- [ ] **Una tarea** — abierta\n' > .todo/TODO.md
+    printf '.todo/\n' > .gitignore
+    printf '# Completados\n\n- [x] **Algo viejo** — de otra sesión\n' > .todo/DONE.md
+    touch -d '1 hour ago' .todo/DONE.md
+    git add .gitignore && git commit -q --no-verify -m init
+    ln -sf '$REPO_ROOT/bin/hooks/pre-commit.sh' .git/hooks/pre-commit
+    echo x > f.txt && git add f.txt
+    out=\$(git commit -m 'fix: algo' 2>&1); rc=\$?
+    case \"\$out\" in
+        *TODO-PRE-COMMIT*) [ \$rc -ne 0 ] && echo OK || echo 'no bloqueó' ;;
+        *) echo \"sin mensaje: \$out\" ;;
+    esac
+")
+[ "$result" = "OK" ] && _pass "DONE.md anterior al último commit → sigue pidiendo registro" || _fail "registro viejo → $result"
+
 # --no-verify → el post-commit lo delata (con la lista retroactiva)
 result=$(run_in_tmpdir "
     git init -q && git config user.email 't@t.com' && git config user.name 'T'
