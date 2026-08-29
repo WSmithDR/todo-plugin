@@ -9,7 +9,7 @@ import { execFileSync } from "node:child_process"
 import { statSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { preCommitMarker } from "../core/git.ts"
-import { openItemTitles, openItems, preCommitReview, registrationCredits } from "../core/rules/pre-commit.ts"
+import { openItemTitles, openItems, preCommitReview, registrationCredits } from "../core/rules/pre-commit/pre-commit.ts"
 import { readTodoFile } from "../core/todo-files.ts"
 import { resolveProjectDir } from "../core/store.ts"
 

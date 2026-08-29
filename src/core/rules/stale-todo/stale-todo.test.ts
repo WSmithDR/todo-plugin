@@ -1,7 +1,7 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
 import { staleTodo } from "./stale-todo.ts"
-import { daysSinceReview } from "../todo-files.ts"
+import { daysSinceReview } from "../../todo-files.ts"
 
 const base = { hasTodoDir: true, todoCount: 3, daysSinceReview: 5 }
 

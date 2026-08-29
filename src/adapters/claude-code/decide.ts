@@ -1,5 +1,5 @@
 import { ALLOW, advise, mergeDecisions, type Decision } from "../../core/protocol.ts"
-import { sessionSetup } from "../../core/rules/session-setup.ts"
+import { sessionSetup } from "../../core/rules/session-setup/session-setup.ts"
 import { clearTouched, rememberHead } from "../../core/session-state.ts"
 import { currentHead } from "../../core/git.ts"
 import { hasTodoDir, storeAvailable } from "../../core/env.ts"

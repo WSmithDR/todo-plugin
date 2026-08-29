@@ -1,4 +1,4 @@
-import { ALLOW, advise, type Decision, type ToolEvent } from "../protocol.ts"
+import { ALLOW, advise, type Decision, type ToolEvent } from "../../protocol.ts"
 
 export type ErrorTriageContext = {
   /** El proyecto tiene `.todo/`. Sin eso no hay dónde anotar nada. */

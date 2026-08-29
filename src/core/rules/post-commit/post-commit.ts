@@ -1,4 +1,4 @@
-import { ALLOW, advise, type Decision } from "../protocol.ts"
+import { ALLOW, advise, type Decision } from "../../protocol.ts"
 
 export type PostCommitInput = {
   hasTodoDir: boolean

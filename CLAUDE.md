@@ -61,7 +61,7 @@ Los cuatro comandos corren en CI.
 | Path | Qué |
 |---|---|
 | `src/core/protocol.ts` | `ToolEvent`, `Decision` (`allow`/`deny`/`advise`), `mergeDecisions`. Lo único que importan los adapters |
-| `src/core/rules/` | Las reglas, puras: reciben el estado de I/O como parámetro y devuelven una `Decision` |
+| `src/core/rules/<regla>/` | Las reglas, puras: reciben el estado de I/O como parámetro y devuelven una `Decision`. Una carpeta por regla, con su test al lado |
 | `src/core/paths.ts` | **Único** dueño de la resolución del root del plugin. No lo recalcules en otro archivo |
 | `src/core/window.ts` | Ventana de escritura del guard |
 | `src/core/store.ts` | Registro central de proyectos sin repo |
@@ -319,7 +319,7 @@ hacía: en este mismo repo la revisión estuvo inactiva meses. La migración es
 retroactiva — corre en la próxima sesión de cualquier proyecto con el slot tomado.
 
 **El registro acredita la tanda, no el commit** (`registrationCredits` en
-`core/rules/pre-commit.ts`). La comparación de DONE.md contra HEAD se consume sola
+`core/rules/pre-commit/`). La comparación de DONE.md contra HEAD se consume sola
 —apenas entra el commit, HEAD queda más nuevo—, lo cual está bien para que un
 registro viejo no habilite commits para siempre, pero asume 1 registro = 1 commit.
 La convención del propio proyecto (una unidad de trabajo por commit) produce N

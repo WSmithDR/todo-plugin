@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "Task lifecycle management for Claude Code projects — add, triage, audit, and track work in .todo/.",
-    "version": "1.46.2"
+    "version": "1.46.3"
   },
   "plugins": [
     {
       "name": "todo-plugin",
       "source": "./",
       "description": "Manages task lifecycle in .todo/ using the Eisenhower matrix. Skills for adding, triaging, auditing, and tracking work. Hooks enforce pre-commit task review and error tracking.",
-      "version": "1.46.2",
+      "version": "1.46.3",
       "author": {
         "name": "WSmithDR"
       },

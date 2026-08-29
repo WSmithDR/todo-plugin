@@ -1,14 +1,14 @@
 import { execFileSync } from "node:child_process"
 import { chmodSync, existsSync, lstatSync, mkdirSync, readlinkSync, renameSync, symlinkSync } from "node:fs"
 import { join } from "node:path"
-import { ALLOW, advise, mergeDecisions, type Decision } from "../protocol.ts"
-import { PLUGIN_ROOT, storeBase, type Env } from "../paths.ts"
-import { adoptPending, list, mode, originRepoPath, projectForRepo, projectPath, repoRootOf, syncStore, type Project } from "../store.ts"
-import { itemsOnMergedBranches, mergedBranches } from "../merged-branches.ts"
-import { markAdvisedOnce } from "../session-state.ts"
-import { rotateArchives } from "../archive.ts"
-import { daysSinceReview, oldestStarted, openItemTitles, openItems, readTodoFile } from "../todo-files.ts"
-import { staleTodo } from "./stale-todo.ts"
+import { ALLOW, advise, mergeDecisions, type Decision } from "../../protocol.ts"
+import { PLUGIN_ROOT, storeBase, type Env } from "../../paths.ts"
+import { adoptPending, list, mode, originRepoPath, projectForRepo, projectPath, repoRootOf, syncStore, type Project } from "../../store.ts"
+import { itemsOnMergedBranches, mergedBranches } from "../../merged-branches.ts"
+import { markAdvisedOnce } from "../../session-state.ts"
+import { rotateArchives } from "../../archive.ts"
+import { daysSinceReview, oldestStarted, openItemTitles, openItems, readTodoFile } from "../../todo-files.ts"
+import { staleTodo } from "../stale-todo/stale-todo.ts"
 
 export type SessionContext = {
   cwd: string

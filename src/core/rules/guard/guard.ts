@@ -1,4 +1,4 @@
-import { ALLOW, deny, type Decision, type ToolEvent } from "../protocol.ts"
+import { ALLOW, deny, type Decision, type ToolEvent } from "../../protocol.ts"
 
 const MARKED_CHECKBOX =
   "TODO-GUARD: intento de marcar '- [x]' en TODO.md/DOING.md bloqueado (la ventana de escritura NO lo autoriza). " +

@@ -14,11 +14,11 @@ import {
   rememberTouched,
   touchedProjects,
 } from "./session-state.ts"
-import { guard } from "./rules/guard.ts"
-import { errorTriage } from "./rules/error-triage.ts"
-import { branchDoing } from "./rules/branch-doing.ts"
-import { editingItem } from "./rules/editing-item.ts"
-import { sessionClose } from "./rules/session-close.ts"
+import { guard } from "./rules/guard/guard.ts"
+import { errorTriage } from "./rules/error-triage/error-triage.ts"
+import { branchDoing } from "./rules/branch-doing/branch-doing.ts"
+import { editingItem } from "./rules/editing-item/editing-item.ts"
+import { sessionClose } from "./rules/session-close/session-close.ts"
 
 /**
  * Qué reglas corren en cada fase y con qué contexto.

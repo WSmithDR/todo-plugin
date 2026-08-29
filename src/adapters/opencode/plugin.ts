@@ -1,5 +1,5 @@
 import { PLUGIN_ROOT } from "../../core/paths.ts"
-import { sessionSetup } from "../../core/rules/session-setup.ts"
+import { sessionSetup } from "../../core/rules/session-setup/session-setup.ts"
 import { decideAfter, decideBefore, decideSessionClose } from "../../core/pipeline.ts"
 import { clearTouched } from "../../core/session-state.ts"
 import { injectConfig, type OpenCodeConfig } from "./config.ts"
