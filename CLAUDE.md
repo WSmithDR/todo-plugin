@@ -125,8 +125,11 @@ menú de proyectos y las tareas viven en el store, no junto al código. Cada rep
 queda amarrado a UN proyecto vía el campo `"origin"` de su `config.json`
 (`projectForRepo`). La mudanza es `todo-store.sh adopt [<ruta>]`: mueve el
 `.todo/` local al store, registra el origen y borra el local — idempotente por
-repo. Mientras exista `.todo/` local, gana el local: la migración es reversible
-volviendo a crear el directorio. El punto de registro entre
+repo, y **cierra el commit de ese borrado** acotado con pathspec `-- .todo` si el
+directorio estaba trackeado: sin eso quedaban cuatro deletes sueltos en el working
+tree, indistinguibles de una pérdida de datos y listos para colarse en el próximo
+`git add -A` ajeno. Mientras exista `.todo/` local, gana el local: la migración es
+reversible volviendo a crear el directorio. El punto de registro entre
 máquinas es `last_commit` en el config del proyecto: avanza solo cuando una
 skill registra trabajo real (DONE/DISCARDED) desde ese repo, y el post-commit
 centralizado lo usa para la lista retroactiva — un commit forzado con
@@ -141,6 +144,20 @@ nada: el gate era `if (!existsSync(cwd/.todo)) return ALLOW`, y son justo los
 proyectos que menos se abren, o sea donde más se acumula. Dentro de un repo sin
 `.todo/` no dice nada — un proyecto de código ajeno no es lugar para recordar las
 tareas de un sitio. Git hooks tampoco: ahí el trabajo pasa afuera, no en commits.
+
+**Y ancla dónde viven las tareas** (`anclarStore`): en un repo ya adoptado el
+arranque emite la ruta absoluta de su `.todo/` en el store más dos conteos. El repo
+no tiene `.todo/` —es lo correcto—, y sin esa línea cada sesión repetía buscar → no
+encontrar → concluir que se perdió; una terminó restaurando un snapshot viejo desde
+la historia de git y reportando una pérdida de datos que no existía.
+
+**Las tareas y el código pueden estar en lugares distintos**, y lo que los cruza
+tiene que saberlo: `staleScope` (`core/store.ts`) devuelve el par
+`{tasksDir, codeDir}` resolviendo el repo real por `origin_path`. `todo-stale`
+corría su `git log` en el cwd y en un proyecto centralizado ese es el store, cuyo
+git solo se mueve cuando una skill escribe una tarea: reportaba cero señales
+siempre. Cualquier consumidor nuevo que cruce tareas contra historia de código sale
+de ahí, no de `process.cwd()`.
 
 | File | Purpose |
 |---|---|
