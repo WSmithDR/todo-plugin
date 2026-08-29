@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process"
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { adopt, adoptPending, create, list, mode, projectForRepo, projectPath, readLastCommit, resolveProjectDir, setLastCommit, setOrigin, slugify, syncStore, syncStoreDetached } from "./store.ts"
+import { adopt, adoptPending, create, list, mode, projectForRepo, projectPath, readLastCommit, resolveProjectDir, setLastCommit, setOrigin, slugify, staleScope, syncStore, syncStoreDetached } from "./store.ts"
 
 // Los commits del store necesitan identidad git, que en CI puede no existir.
 process.env.GIT_AUTHOR_NAME ||= "T"
@@ -461,5 +461,78 @@ test("adopt: el .todo local más VIEJO no pisa el del store más nuevo", () => {
     )
     adopt(repo, undefined, { env })
     assert.match(readFileSync(join(dir, ".todo", "DONE.md"), "utf8"), /Cierre de hoy/)
+  })
+})
+
+// ── adopt: el borrado del .todo trackeado se commitea solo ─────────────────
+
+test("adopt commitea el borrado cuando .todo estaba trackeado en el repo", () => {
+  withRepo((env, base, repo) => {
+    mkdirSync(join(base), { recursive: true })
+    writeFileSync(join(base, "settings.json"), JSON.stringify({ central_repos: true }))
+    mkdirSync(join(repo, ".todo"))
+    writeFileSync(join(repo, ".todo", "TODO.md"), "- [ ] **Trackeada**\n")
+    writeFileSync(join(repo, "codigo.ts"), "export const x = 1\n")
+    execFileSync("git", ["-C", repo, "add", "-A"])
+    execFileSync("git", ["-C", repo, "commit", "-q", "-m", "inicial", "--no-verify"])
+    // un cambio ajeno sin commitear: la limpieza NO debe llevárselo
+    writeFileSync(join(repo, "codigo.ts"), "export const x = 2\n")
+
+    const r = adopt(repo, undefined, { env })
+
+    assert.equal(r.commiteado, true)
+    const sucio = execFileSync("git", ["-C", repo, "status", "--porcelain"], { encoding: "utf8" })
+    assert.equal(/\.todo/.test(sucio), false, "el borrado de .todo quedó sin commitear")
+    assert.match(sucio, /codigo\.ts/, "la limpieza se llevó puesto un cambio ajeno")
+  })
+})
+
+test("adopt no commitea nada si .todo no estaba trackeado", () => {
+  withRepo((env, base, repo) => {
+    mkdirSync(join(base), { recursive: true })
+    writeFileSync(join(base, "settings.json"), JSON.stringify({ central_repos: true }))
+    writeFileSync(join(repo, "codigo.ts"), "x\n")
+    execFileSync("git", ["-C", repo, "add", "-A"])
+    execFileSync("git", ["-C", repo, "commit", "-q", "-m", "inicial", "--no-verify"])
+    const antes = execFileSync("git", ["-C", repo, "rev-parse", "HEAD"], { encoding: "utf8" })
+
+    mkdirSync(join(repo, ".todo"))
+    writeFileSync(join(repo, ".todo", "TODO.md"), "- [ ] **Nunca trackeada**\n")
+    const r = adopt(repo, undefined, { env })
+
+    assert.equal(r.commiteado, false)
+    assert.equal(execFileSync("git", ["-C", repo, "rev-parse", "HEAD"], { encoding: "utf8" }), antes)
+  })
+})
+
+// ── staleScope: las tareas están en el store, el código está en el repo ────
+
+test("staleScope: en un repo adoptado, el cruce mira el repo y no el store", () => {
+  withRepo((env, base, repo) => {
+    mkdirSync(join(base), { recursive: true })
+    writeFileSync(join(base, "settings.json"), JSON.stringify({ central_repos: true }))
+    mkdirSync(join(repo, ".todo"))
+    writeFileSync(join(repo, ".todo", "TODO.md"), "- [ ] **Algo**\n")
+    const { id, dir } = adopt(repo, undefined, { env })
+
+    // desde el repo
+    assert.deepEqual(staleScope(repo, { env }), { tasksDir: dir, codeDir: realpathSync(repo) })
+    // y desde el directorio del proyecto en el store, que es donde cd-ea la skill
+    assert.deepEqual(staleScope(projectPath(id, { env }), { env }), { tasksDir: dir, codeDir: realpathSync(repo) })
+  })
+})
+
+test("staleScope: un proyecto del store sin repo se cruza contra sí mismo", () => {
+  withStore((env) => {
+    const id = create("Sitio WP", { env })
+    const dir = projectPath(id, { env })
+    assert.deepEqual(staleScope(dir, { env }), { tasksDir: dir, codeDir: dir })
+  })
+})
+
+test("staleScope: un repo con .todo local no toca el store", () => {
+  withRepo((env, _base, repo) => {
+    mkdirSync(join(repo, ".todo"))
+    assert.deepEqual(staleScope(repo, { env }), { tasksDir: repo, codeDir: repo })
   })
 })

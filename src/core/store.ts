@@ -320,7 +320,7 @@ export function resolveProjectDir(cwd: string, env?: Env): string | null {
  * otro archivo suelto en .todo/ se deja atrás a propósito — si aparece algo que
  * haga falta mudar, se agrega a la lista, no un glob ciego.
  */
-export type AdoptResult = { id: string; dir: string; mudados: string[]; saltados: string[] }
+export type AdoptResult = { id: string; dir: string; mudados: string[]; saltados: string[]; commiteado: boolean }
 
 export function adopt(repoPath: string, name: string | undefined, opts: StoreOptions = {}): AdoptResult {
   const root = repoRoot(repoPath)
@@ -375,7 +375,37 @@ export function adopt(repoPath: string, name: string | undefined, opts: StoreOpt
   }
 
   setOrigin(id, root, opts)
-  return { id, dir, mudados, saltados }
+  return { id, dir, mudados, saltados, commiteado: commitDeletion(root) }
+}
+
+/**
+ * El borrado del `.todo/` que estaba TRACKEADO se commitea acá mismo, acotado a
+ * esa ruta y con `--no-verify`.
+ *
+ * Si no, la mudanza deja el working tree con cuatro archivos borrados y sin
+ * autor: indistinguible de una pérdida de datos —hubo que abrirlos y cruzarlos
+ * contra el store para entender qué había pasado— y, peor, se cuela en el
+ * próximo `git add -A` de otra persona. `--no-verify` porque el pre-commit de
+ * este mismo plugin abortaría el commit que limpia su propia mudanza.
+ *
+ * `-- .todo` es la parte que importa: el pathspec deja intacto cualquier cambio
+ * ajeno que hubiera en vuelo.
+ */
+function commitDeletion(root: string): boolean {
+  try {
+    const pending = execFileSync("git", ["-C", root, "status", "--porcelain", "--", ".todo"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    })
+    if (pending.trim() === "") return false
+    execFileSync("git", ["-C", root, "add", "-A", "--", ".todo"], QUIET)
+    execFileSync("git", ["-C", root, "commit", "-q", "--no-verify", "-m", "todo: migrar .todo al registro central", "--", ".todo"], QUIET)
+    return true
+  } catch {
+    // Sin identidad git, sin HEAD todavía, o nada trackeado que borrar: el dato
+    // ya está en el store, que es lo que importa. El aviso lo dice igual.
+    return false
+  }
 }
 
 /**
@@ -525,6 +555,25 @@ export function readLastCommit(id: string, opts: StoreOptions = {}): string {
 
 export function repoRootOf(path: string): string {
   return repoRoot(path)
+}
+
+/**
+ * Los DOS directorios que necesita la detección de tareas rezagadas: dónde
+ * están las tareas y dónde está el código contra el que se cruzan.
+ *
+ * Son el mismo salvo en un proyecto centralizado, y ahí la diferencia es todo:
+ * `todo-stale` corría su `git log` en el cwd, que para esos proyectos es el
+ * directorio del STORE. Ese git solo cambia cuando una skill escribe una tarea,
+ * nunca cuando cambia el código — o sea que el cruce "el archivo que nombra la
+ * tarea se tocó después de crearla" no encontraba nada jamás. Un no-op silencioso:
+ * reportaba "cero señales" y el triage se quedaba sin su mejor filtro.
+ */
+export function staleScope(cwd: string, opts: StoreOptions = {}): { tasksDir: string; codeDir: string } {
+  const tasksDir = resolveProjectDir(cwd, opts.env) ?? projectForPath(cwd, opts)?.dir ?? cwd
+  const project = projectForPath(tasksDir, opts)
+  if (project === null) return { tasksDir, codeDir: tasksDir }
+  const repo = originRepoPath(project.id, opts)
+  return { tasksDir, codeDir: repo !== "" && existsSync(repo) ? repo : tasksDir }
 }
 
 /** El repo de ESTA máquina que alimenta el proyecto (config.local.json), o "". */
