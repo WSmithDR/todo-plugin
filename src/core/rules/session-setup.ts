@@ -3,7 +3,7 @@ import { chmodSync, existsSync, lstatSync, mkdirSync, readlinkSync, renameSync, 
 import { join } from "node:path"
 import { ALLOW, advise, mergeDecisions, type Decision } from "../protocol.ts"
 import { PLUGIN_ROOT, storeBase, type Env } from "../paths.ts"
-import { adoptPending, list, mode, originRepoPath, projectPath, syncStore, type Project } from "../store.ts"
+import { adoptPending, list, mode, originRepoPath, projectForRepo, projectPath, repoRootOf, syncStore, type Project } from "../store.ts"
 import { itemsOnMergedBranches, mergedBranches } from "../merged-branches.ts"
 import { markAdvisedOnce } from "../session-state.ts"
 import { rotateArchives } from "../archive.ts"
@@ -47,7 +47,9 @@ export function sessionSetup(ctx: SessionContext): Decision {
   // esta línea era un `return ALLOW` seco y por eso NADA de SessionStart los
   // alcanzaba: ni la poda por año ni el recordatorio de triage. Son justamente
   // los proyectos que menos se abren, o sea donde más se acumula.
-  if (!existsSync(join(ctx.cwd, ".todo"))) return storeSetup(ctx, today)
+  if (!existsSync(join(ctx.cwd, ".todo"))) {
+    return mergeDecisions([anclarStore(ctx), storeSetup(ctx, today)])
+  }
 
   // La migración perezosa MORDIENDO: con central_repos activa, el primer
   // SessionStart de un repo con .todo/ local lo adopta sin preguntar. No es un
@@ -79,6 +81,41 @@ Las tareas ya no viven junto al código: las skills operan sobre el store desde 
     }),
     checkConfig(ctx.cwd),
   ])
+}
+
+/**
+ * El ancla: en un repo ya adoptado, decir DÓNDE viven sus tareas.
+ *
+ * Sin esta línea el arranque no menciona el store, y como el repo no tiene
+ * `.todo/` —correcto: está centralizado— cada sesión repite el mismo ciclo
+ * buscar → no encontrar → concluir que se perdió. Una vez terminó en un
+ * "rescate" desde la historia de git y un reporte de pérdida de datos que no
+ * existía. La ruta absoluta y dos conteos alcanzan para anclar dónde está la
+ * verdad; lo que haya que hacer con esas tareas lo dice `storeSetup`.
+ */
+function anclarStore(ctx: SessionContext): Decision {
+  const env = ctx.env
+  const root = repoRootOf(ctx.cwd)
+  if (root === "") return ALLOW
+
+  const project = (() => {
+    try {
+      return projectForRepo(root, { env })
+    } catch {
+      return null
+    }
+  })()
+  if (project === null) return ALLOW
+
+  const dir = projectPath(project.id, { env })
+  const pendientes = openItemTitles(readTodoFile(dir, "TODO.md")).length
+  const enCurso = openItemTitles(readTodoFile(dir, "DOING.md")).length
+
+  return advise(
+    `TODO-CENTRAL: las tareas de este repo viven en el registro central, no en el working tree.
+  ${join(dir, ".todo")}  (${pendientes} pendientes · ${enCurso} en curso)
+No busques .todo/ acá ni lo restaures desde git: no tenerlo es lo correcto.`,
+  )
 }
 
 /**

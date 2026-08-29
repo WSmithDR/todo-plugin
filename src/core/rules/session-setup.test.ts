@@ -171,11 +171,14 @@ test("central_repos: el primer SessionStart adopta el repo; el segundo ya opera 
       const msgDe = (d: ReturnType<typeof sessionSetup>): string =>
         d.action === "allow" ? "" : d.message
       const primera = sessionSetup({ cwd, pluginRoot, env })
-      assert.match(msgDe(primera), /TODO-CENTRAL/)
+      assert.match(msgDe(primera), /pasó al registro central/)
       assert.ok(!existsSync(join(cwd, ".todo")))
 
+      // La segunda no vuelve a mudar nada, pero SÍ ancla dónde quedaron las
+      // tareas: sin esa línea el repo arranca sin `.todo/` y sin explicación.
       const segunda = sessionSetup({ cwd, pluginRoot, env })
-      assert.doesNotMatch(msgDe(segunda), /TODO-CENTRAL/)
+      assert.doesNotMatch(msgDe(segunda), /pasó al registro central/)
+      assert.match(msgDe(segunda), /las tareas de este repo viven en el registro central/)
     },
     { config: true },
   )

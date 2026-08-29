@@ -1,7 +1,7 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
 import { execFileSync } from "node:child_process"
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { sessionSetup } from "./session-setup.ts"
@@ -132,5 +132,64 @@ test("una tarea recién empezada no molesta", () => {
   withStore({ "popular-imports": { todo: listaDe(3) } }, ({ cwd, env, base }) => {
     writeFileSync(join(base, "popular-imports", ".todo", "DOING.md"), doing)
     assert.equal(sessionSetup({ cwd, env, today: HOY }).action, "allow")
+  })
+})
+
+// ── El ancla: un repo centralizado dice DÓNDE viven sus tareas ─────────────
+
+/** Un repo git bindeado a un proyecto del store, sin `.todo/` local. */
+function withRepoAdoptado<T>(
+  todo: string,
+  doing: string,
+  fn: (ctx: { repo: string; env: Record<string, string>; base: string }) => T,
+): T {
+  const dir = mkdtempSync(join(tmpdir(), "todo-adoptado-"))
+  try {
+    const env = { HOME: dir, XDG_DATA_HOME: join(dir, "data"), XDG_CACHE_HOME: join(dir, "cache") }
+    const base = join(env.XDG_DATA_HOME, "todo")
+    mkdirSync(base, { recursive: true })
+    execFileSync("git", ["init", "-q"], { cwd: base })
+    execFileSync("git", ["config", "user.email", "t@t.com"], { cwd: base })
+    execFileSync("git", ["config", "user.name", "T"], { cwd: base })
+    writeFileSync(join(base, "settings.json"), JSON.stringify({ central_repos: true }))
+
+    const repo = join(dir, "mi-app")
+    mkdirSync(repo, { recursive: true })
+    execFileSync("git", ["init", "-q"], { cwd: repo })
+
+    const todoDir = join(base, "mi-app", ".todo")
+    mkdirSync(todoDir, { recursive: true })
+    writeFileSync(join(todoDir, "config.json"), JSON.stringify({ id: "mi-app", name: "Mi App" }))
+    writeFileSync(join(todoDir, "config.local.json"), JSON.stringify({ origin_path: realpathSync(repo) }))
+    writeFileSync(join(todoDir, "TODO.md"), todo)
+    writeFileSync(join(todoDir, "DOING.md"), doing)
+    execFileSync("git", ["add", "-A"], { cwd: base })
+    execFileSync("git", ["commit", "-q", "-m", "init", "--no-verify"], { cwd: base })
+
+    return fn({ repo, env, base })
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
+
+test("un repo centralizado ancla la ruta del store y los conteos", () => {
+  withRepoAdoptado(listaDe(3), "# En curso\n\n- [ ] **Arreglar X** — y\n", ({ repo, env, base }) => {
+    const d = sessionSetup({ cwd: repo, env, today: HOY })
+    const message = d.action === "advise" ? d.message : ""
+    assert.match(message, /TODO-CENTRAL/)
+    assert.ok(message.includes(join(base, "mi-app", ".todo")), `sin la ruta absoluta: ${message}`)
+    assert.match(message, /3 pendientes/)
+    assert.match(message, /1 en curso/)
+  })
+})
+
+test("un repo NO centralizado no dice nada del store", () => {
+  withStore({ "web-emc": { todo: listaDe(1) } }, ({ env, base }) => {
+    const repo = join(base, "..", "..", "repo-ajeno")
+    mkdirSync(repo, { recursive: true })
+    execFileSync("git", ["init", "-q"], { cwd: repo })
+    const d = sessionSetup({ cwd: repo, env, today: HOY })
+    const message = d.action === "advise" ? d.message : ""
+    assert.doesNotMatch(message, /TODO-CENTRAL/)
   })
 })
