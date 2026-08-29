@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Tareas abiertas que probablemente ya estén resueltas.
 //
-//   todo-stale        las de .todo/TODO.md de este directorio
+//   todo-stale        las del proyecto de este directorio (local o del store)
 //
 // Lo invoca la skill todo-triage. Una sola llamada a git para todo el historial
 // relevante, en vez de un `git log` por item: con 48 items abiertos lo segundo es
@@ -9,11 +9,17 @@
 import { execFileSync } from "node:child_process"
 import { openItems, readTodoFile } from "../core/todo-files.ts"
 import { staleCandidates, type Change } from "../core/stale-items.ts"
+import { staleScope } from "../core/store.ts"
 
 const MAX_CHANGES_SHOWN = 3
-const cwd = process.cwd()
 
-const items = openItems(readTodoFile(cwd, "TODO.md"))
+// Las tareas y el código pueden NO estar en el mismo lugar: en un proyecto
+// centralizado las tareas viven en el store y el código en su repo. Cruzar
+// contra el git del store no encuentra nada nunca — ese git solo se mueve
+// cuando una skill escribe una tarea.
+const { tasksDir, codeDir } = staleScope(process.cwd())
+
+const items = openItems(readTodoFile(tasksDir, "TODO.md"))
 if (items.length === 0) {
   console.log("Sin items abiertos en .todo/TODO.md.")
   process.exit(0)
@@ -30,7 +36,7 @@ const log = (() => {
     // aparecían como evidencia de las tareas de otro.
     const args = ["log", `--since=${desde}`, "--name-only", "--date=short", "--pretty=format:%x00%h|%ad|%s", "--", "."]
     return execFileSync("git", args, {
-      cwd,
+      cwd: codeDir,
       encoding: "utf8",
       maxBuffer: 32 * 1024 * 1024,
     })
