@@ -9,7 +9,7 @@ import { execFileSync } from "node:child_process"
 import { statSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { preCommitMarker } from "../core/git.ts"
-import { openItemTitles, openItems, preCommitReview } from "../core/rules/pre-commit.ts"
+import { openItemTitles, openItems, preCommitReview, registrationCredits } from "../core/rules/pre-commit.ts"
 import { readTodoFile } from "../core/todo-files.ts"
 import { resolveProjectDir } from "../core/store.ts"
 
@@ -49,9 +49,8 @@ const mtime = (path: string): number => {
  * y `--no-verify` volvía a ser obligatorio — justo lo que este allow vino a
  * evitar. Y `--no-verify` no saltea este chequeo: saltea toda la cadena de hooks.
  *
- * El disco se compara contra la fecha del último commit, así que la señal se
- * consume sola: apenas el commit entra, HEAD queda más nuevo que el archivo y el
- * siguiente commit vuelve a pedir registro.
+ * El disco se compara contra la fecha del último commit, pero el registro
+ * acredita la TANDA y no un solo commit: ver `registrationCredits`.
  *
  * ponytail: la resolución es el mtime, no el contenido. Techo conocido: cualquier
  * reescritura de DONE.md posterior al último commit cuenta como registro —p.ej. la
@@ -68,7 +67,8 @@ function registeredWork(projectDir: string | null): number {
   const head = Number(git("log", "-1", "--format=%ct")) * 1000
   if (!Number.isFinite(head) || head <= 0) return 0
 
-  return ["DONE.md", "DISCARDED.md"].some((name) => mtime(join(projectDir, ".todo", name)) > head) ? 1 : 0
+  const registeredAt = Math.max(...["DONE.md", "DISCARDED.md"].map((name) => mtime(join(projectDir, ".todo", name))))
+  return registrationCredits(registeredAt, head, Date.now()) ? 1 : 0
 }
 
 const decision = preCommitReview({

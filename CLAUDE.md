@@ -318,6 +318,15 @@ la regla ignora los amends. Antes acá se avisaba "encadenalo a mano" y nadie lo
 hacía: en este mismo repo la revisión estuvo inactiva meses. La migración es
 retroactiva — corre en la próxima sesión de cualquier proyecto con el slot tomado.
 
+**El registro acredita la tanda, no el commit** (`registrationCredits` en
+`core/rules/pre-commit.ts`). La comparación de DONE.md contra HEAD se consume sola
+—apenas entra el commit, HEAD queda más nuevo—, lo cual está bien para que un
+registro viejo no habilite commits para siempre, pero asume 1 registro = 1 commit.
+La convención del propio proyecto (una unidad de trabajo por commit) produce N
+commits por registro: el camino disciplinado era el que el gate castigaba, y el
+`--no-verify` resultante saltea toda la cadena de hooks. Ahora el registro sigue
+valiendo 30 minutos.
+
 **La marca `<git-dir>/todo-precommit-ok`** la escribe el pre-commit en cada corrida
 y la consume el post-commit. Significa "la revisión se vio", no "salió allow":
 como el `advise` aborta el commit, el `--no-verify` que viene después es el camino

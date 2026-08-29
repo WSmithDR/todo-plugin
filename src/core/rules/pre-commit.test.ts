@@ -1,6 +1,6 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { openItemTitles, preCommitReview } from "./pre-commit.ts"
+import { TANDA_MINUTES, openItemTitles, preCommitReview, registrationCredits } from "./pre-commit.ts"
 
 const base = {
   hasTodoDir: true,
@@ -167,4 +167,21 @@ test("sin trabajo registrado ni checkboxes, sigue el advise de siempre", () => {
     recentCommits: [],
   })
   assert.equal(decision.action, "advise")
+})
+
+// registrationCredits: el registro acredita la TANDA, no un solo commit.
+test("registro más nuevo que HEAD acredita", () => {
+  assert.equal(registrationCredits(2000, 1000, 2000), true)
+})
+
+test("registro ya consumido por un commit sigue acreditando dentro de la tanda", () => {
+  const now = 10 * 60_000
+  assert.equal(registrationCredits(0, now, now), false, "sin registro no acredita")
+  // registrado hace 10 min, ya hay un commit encima (HEAD más nuevo)
+  assert.equal(registrationCredits(0 + 1, now - 1, now), true)
+})
+
+test("registro viejo deja de acreditar", () => {
+  const now = 100 * 60_000
+  assert.equal(registrationCredits(now - (TANDA_MINUTES + 1) * 60_000, now - 60_000, now), false)
 })

@@ -97,3 +97,29 @@ Instrucciones:
 
   return advise(sections.join("\n"))
 }
+
+/** Minutos que un registro sigue acreditando commits después de haberse escrito. */
+export const TANDA_MINUTES = 30
+
+/**
+ * ¿El registro en disco acredita este commit?
+ *
+ * La comparación contra HEAD se consume sola —apenas entra el commit, HEAD queda
+ * más nuevo que DONE.md— y eso es lo correcto para que un registro viejo no
+ * habilite commits para siempre. Pero asume 1 registro = 1 commit, y la
+ * convención del proyecto (una unidad de trabajo por commit, con sus tests)
+ * produce N commits por registro: el camino disciplinado —registrar todo junto,
+ * después commitear en unidades— era justo el que el gate castigaba, y el
+ * --no-verify resultante saltea toda la cadena de hooks, no solo este chequeo.
+ *
+ * Así que el registro acredita la TANDA: sigue valiendo mientras sea reciente.
+ *
+ * ponytail: la tanda es una ventana de tiempo, no un conjunto de commits
+ * identificado. Techo conocido: un commit no relacionado dentro de los 30 min de
+ * un registro también pasa. El upgrade, si molesta, es anotar en la marca
+ * `todo-precommit-ok` qué registro se acreditó y contra eso comparar.
+ */
+export function registrationCredits(registeredAt: number, head: number, now: number): boolean {
+  if (registeredAt <= 0) return false
+  return registeredAt > head || now - registeredAt < TANDA_MINUTES * 60_000
+}
