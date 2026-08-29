@@ -1,7 +1,7 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
 import { guard } from "./guard.ts"
-import type { ToolEvent, ToolKind } from "../../protocol.ts"
+import type { ToolEvent, ToolKind } from "../../lib/protocol/protocol.ts"
 
 // Los casos son el port de bin/dev/test-guard.sh, que probaba el mismo
 // comportamiento spawneando bash + python3. Acá la regla es pura: no toca disco,

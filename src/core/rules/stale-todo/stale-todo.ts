@@ -1,4 +1,4 @@
-import { ALLOW, advise, type Decision } from "../../protocol.ts"
+import { ALLOW, advise, type Decision } from "../../lib/protocol/protocol.ts"
 
 export type StaleTodoInput = {
   hasTodoDir: boolean

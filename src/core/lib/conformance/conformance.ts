@@ -1,8 +1,8 @@
 import { execFileSync } from "node:child_process"
 import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
-import { PLUGIN_ROOT } from "./paths.ts"
-import { discoverAgents, discoverSkills } from "./discovery.ts"
+import { PLUGIN_ROOT } from "../paths/paths.ts"
+import { discoverAgents, discoverSkills } from "../discovery/discovery.ts"
 
 /**
  * Conformance check: verifica que lo que el plugin DECLARA exista y funcione.

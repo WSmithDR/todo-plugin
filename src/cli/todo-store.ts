@@ -9,7 +9,7 @@
 //
 // El formato de salida es el del script en bash que reemplaza: las skills lo
 // parsean, así que cambiarlo las rompe.
-import { adopt, create, list, mode, projectPath } from "../core/store.ts"
+import { adopt, create, list, mode, projectPath } from "../core/lib/store/store.ts"
 
 const [command, ...args] = process.argv.slice(2)
 

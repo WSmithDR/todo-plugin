@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { decide } from "./decide.ts"
-import { openWindow } from "../../core/window.ts"
+import { openWindow } from "../../core/lib/window/window.ts"
 
 // Cobertura de los tres modos que antes vivía en bin/dev/test-hooks.sh, cuando
 // cada regla era un script de bash aparte que se spawneaba por caso.

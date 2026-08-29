@@ -1,9 +1,9 @@
-import { ALLOW, advise, mergeDecisions, type Decision, type ToolEvent } from "./protocol.ts"
-import { guardEnabled, storeAvailable } from "./env.ts"
-import { isWindowOpen } from "./window.ts"
-import { currentBranch, currentHead, refLogStamp } from "./git.ts"
-import { editingContext, openItemTitles, readTodoFile } from "./todo-files.ts"
-import { projectForPath, projectForRepo, repoRootOf, resolveProjectDir, setLastCommit, syncStoreDetached } from "./store.ts"
+import { ALLOW, advise, mergeDecisions, type Decision, type ToolEvent } from "../protocol/protocol.ts"
+import { guardEnabled, storeAvailable } from "../env/env.ts"
+import { isWindowOpen } from "../window/window.ts"
+import { currentBranch, currentHead, refLogStamp } from "../git/git.ts"
+import { editingContext, openItemTitles, readTodoFile } from "../todo-files/todo-files.ts"
+import { projectForPath, projectForRepo, repoRootOf, resolveProjectDir, setLastCommit, syncStoreDetached } from "../store/store.ts"
 import {
   clearTouched,
   lastSeenHead,
@@ -13,12 +13,12 @@ import {
   rememberStamp,
   rememberTouched,
   touchedProjects,
-} from "./session-state.ts"
-import { guard } from "./rules/guard/guard.ts"
-import { errorTriage } from "./rules/error-triage/error-triage.ts"
-import { branchDoing } from "./rules/branch-doing/branch-doing.ts"
-import { editingItem } from "./rules/editing-item/editing-item.ts"
-import { sessionClose } from "./rules/session-close/session-close.ts"
+} from "../session-state/session-state.ts"
+import { guard } from "../../rules/guard/guard.ts"
+import { errorTriage } from "../../rules/error-triage/error-triage.ts"
+import { branchDoing } from "../../rules/branch-doing/branch-doing.ts"
+import { editingItem } from "../../rules/editing-item/editing-item.ts"
+import { sessionClose } from "../../rules/session-close/session-close.ts"
 
 /**
  * Qué reglas corren en cada fase y con qué contexto.

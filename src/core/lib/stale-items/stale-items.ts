@@ -1,4 +1,4 @@
-import { significantBasename, type OpenItem } from "./todo-files.ts"
+import { significantBasename, type OpenItem } from "../todo-files/todo-files.ts"
 
 /**
  * Detección de tareas abiertas que probablemente ya estén resueltas.

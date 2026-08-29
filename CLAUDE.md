@@ -58,19 +58,22 @@ bash bin/todo-health.sh          # conformance: lo declarado existe y arranca
 `const declare = …` que node y `tsc` aceptan sin chistar rompe el parser de bun.
 Los cuatro comandos corren en CI.
 
+**Una carpeta por módulo, con su test al lado**: `core/rules/<regla>/` para las
+reglas y `core/lib/<módulo>/` para el resto. Nada suelto en `core/`.
+
 | Path | Qué |
 |---|---|
-| `src/core/protocol.ts` | `ToolEvent`, `Decision` (`allow`/`deny`/`advise`), `mergeDecisions`. Lo único que importan los adapters |
+| `src/core/lib/protocol/protocol.ts` | `ToolEvent`, `Decision` (`allow`/`deny`/`advise`), `mergeDecisions`. Lo único que importan los adapters |
 | `src/core/rules/<regla>/` | Las reglas, puras: reciben el estado de I/O como parámetro y devuelven una `Decision`. Una carpeta por regla, con su test al lado |
-| `src/core/paths.ts` | **Único** dueño de la resolución del root del plugin. No lo recalcules en otro archivo |
-| `src/core/window.ts` | Ventana de escritura del guard |
-| `src/core/store.ts` | Registro central de proyectos sin repo |
-| `src/core/discovery.ts` | Escanea `skills/` y `agents/` leyendo frontmatter |
+| `src/core/lib/paths/paths.ts` | **Único** dueño de la resolución del root del plugin: sube buscando `.claude-plugin/plugin.json`, no cuenta `..`. No lo recalcules en otro archivo |
+| `src/core/lib/window/window.ts` | Ventana de escritura del guard |
+| `src/core/lib/store/store.ts` | Registro central de proyectos sin repo |
+| `src/core/lib/discovery/discovery.ts` | Escanea `skills/` y `agents/` leyendo frontmatter |
 | `src/adapters/claude-code/` | `normalize` (payload → `ToolEvent`), `decide` (→ `Decision`), `emit` (→ exit code) |
 | `src/cli/` | Lo que invocan las skills y git: `todo-guard`, `todo-store`, `pre-commit` |
 
-| `src/core/pipeline.ts` | Qué reglas corren en cada fase y con qué contexto. Los adapters lo llaman; ninguno lo reimplementa |
-| `src/core/instructions.ts` | Índice de skills + reglas duras para el system prompt. Cada adapter aporta su `Dialect` (cómo se carga una skill, cómo se llama su tool de preguntas) |
+| `src/core/lib/pipeline/pipeline.ts` | Qué reglas corren en cada fase y con qué contexto. Los adapters lo llaman; ninguno lo reimplementa |
+| `src/core/lib/instructions/instructions.ts` | Índice de skills + reglas duras para el system prompt. Cada adapter aporta su `Dialect` (cómo se carga una skill, cómo se llama su tool de preguntas) |
 
 `core/` no sabe qué CLI está corriendo: esa traducción es de `adapters/`. **Un
 adapter solo debería tener normalize + emit + su dialecto**; si te encontrás
@@ -135,7 +138,7 @@ skill registra trabajo real (DONE/DISCARDED) desde ese repo, y el post-commit
 centralizado lo usa para la lista retroactiva — un commit forzado con
 --no-verify queda reclamado hasta que alguien cierre la tarea.
 
-**SessionStart también los cubre** (`storeSetup` en `session-setup.ts`): sin la
+**SessionStart también los cubre** (`storeSetup` en `rules/session-setup/`): sin la
 preferencia, solo **fuera de un repo**; con `central_repos` activa, también dentro
 de los repos amarrados por `origin` — ese repo ya es el proyecto. En ambos casos
 recorre los proyectos del store, rota sus archivos por año en silencio —commiteando, porque el store se versiona solo— y junta en UN aviso los que
@@ -152,7 +155,7 @@ encontrar → concluir que se perdió; una terminó restaurando un snapshot viej
 la historia de git y reportando una pérdida de datos que no existía.
 
 **Las tareas y el código pueden estar en lugares distintos**, y lo que los cruza
-tiene que saberlo: `staleScope` (`core/store.ts`) devuelve el par
+tiene que saberlo: `staleScope` (`core/lib/store/store.ts`) devuelve el par
 `{tasksDir, codeDir}` resolviendo el repo real por `origin_path`. `todo-stale`
 corría su `git log` en el cwd y en un proyecto centralizado ese es el store, cuyo
 git solo se mueve cuando una skill escribe una tarea: reportaba cero señales
@@ -167,7 +170,7 @@ de ahí, no de `process.cwd()`.
 | `.todo/DISCARDED.md` | Discarded items — **año en curso** |
 | `.todo/DONE-<año>.md` · `.todo/DISCARDED-<año>.md` | Lo cerrado en años anteriores |
 
-**Rotación por año.** En `SessionStart`, `rotateArchives` (`src/core/archive.ts`) manda
+**Rotación por año.** En `SessionStart`, `rotateArchives` (`src/core/lib/archive/archive.ts`) manda
 lo cerrado en años anteriores a `<NOMBRE>-<año>.md`, al lado. El año de un item es el
 de su **última** fecha —la del cierre—, no la de creación: rotar por creación mandaría
 al archivo viejo algo que se cerró ayer. Un item sin fecha se queda donde está.
@@ -242,7 +245,7 @@ el otro extremo: después del último commit no había ninguna señal.
 
 Los dos avisan **una sola vez** — `editing-item` por tarea y por proyecto,
 `session-close` solo si HEAD se movió. El estado vive en
-`src/core/session-state.ts`, sobre el cache: perderlo cuesta un aviso repetido,
+`src/core/lib/session-state/session-state.ts`, sobre el cache: perderlo cuesta un aviso repetido,
 nada más. Un aviso que se repite es ruido que el modelo aprende a saltear.
 
 ### OpenCode (`.opencode/plugins/todo-plugin.ts` → `src/adapters/opencode/`)
@@ -256,7 +259,7 @@ nada más. Un aviso que se repite es ruido que el modelo aprende a saltear.
 | `experimental.chat.system.transform` | Índice de skills + aviso de setup | `SessionStart` |
 
 `session-close` es la misma función para los dos (`decideSessionClose` en
-`core/pipeline.ts`); lo único que cambia es el flag `perRequest`, que activa el
+`core/lib/pipeline/pipeline.ts`); lo único que cambia es el flag `perRequest`, que activa el
 gate del reflog. No es cosmético: Claude Code la llama una vez, OpenCode en cada
 request.
 
@@ -341,7 +344,7 @@ Editor-agnóstico — corre en cualquier CLI o editor. Se instala automáticamen
 
 **Nombra las tareas rezagadas.** De TODO.md no muestra un contador sino los items
 abiertos que **mencionan algún archivo del staging** (`itemsMentioning` en
-`core/todo-files.ts`, el mismo matcher que usa `editing-item`). Nadie compara 40
+`core/lib/todo-files/todo-files.ts`, el mismo matcher que usa `editing-item`). Nadie compara 40
 items contra un diff; la tarea abierta cuyo arreglo ya está en el commit es
 justamente la que se rezaga para siempre.
 

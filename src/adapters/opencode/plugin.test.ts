@@ -4,8 +4,8 @@ import { execFileSync } from "node:child_process"
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { PLUGIN_ROOT } from "../../core/paths.ts"
-import { openWindow } from "../../core/window.ts"
+import { PLUGIN_ROOT } from "../../core/lib/paths/paths.ts"
+import { openWindow } from "../../core/lib/window/window.ts"
 import { createHooks } from "./plugin.ts"
 
 // La ventana del guard es real; sin aislar el cache el resultado depende de si

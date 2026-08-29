@@ -1,6 +1,6 @@
 import { closeSync, mkdirSync, openSync, statSync, utimesSync } from "node:fs"
 import { join } from "node:path"
-import { cacheDir, type Env } from "./paths.ts"
+import { cacheDir, type Env } from "../paths/paths.ts"
 
 /**
  * Ventana de escritura del guard.

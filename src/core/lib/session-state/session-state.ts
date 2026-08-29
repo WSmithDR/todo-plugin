@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto"
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
-import { cacheDir, type Env } from "./paths.ts"
+import { cacheDir, type Env } from "../paths/paths.ts"
 
 /**
  * Estado chico y descartable entre invocaciones de hooks.

@@ -1,7 +1,7 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
 import { editingItem } from "./editing-item.ts"
-import type { ToolEvent } from "../../protocol.ts"
+import type { ToolEvent } from "../../lib/protocol/protocol.ts"
 
 const edito = (path: string): ToolEvent => ({
   phase: "after",

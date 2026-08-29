@@ -1,7 +1,7 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
 import { join } from "node:path"
-import { PLUGIN_ROOT } from "../../core/paths.ts"
+import { PLUGIN_ROOT } from "../../core/lib/paths/paths.ts"
 import { injectConfig, type OpenCodeConfig } from "./config.ts"
 
 test("registra el dir de skills del plugin", () => {

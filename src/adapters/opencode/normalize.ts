@@ -1,4 +1,4 @@
-import type { ToolEvent, ToolKind } from "../../core/protocol.ts"
+import type { ToolEvent, ToolKind } from "../../core/lib/protocol/protocol.ts"
 
 /**
  * OpenCode nombra las tools en minúscula y les pasa los argumentos en camelCase

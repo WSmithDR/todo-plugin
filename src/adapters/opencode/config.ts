@@ -1,6 +1,6 @@
 import { join } from "node:path"
-import { PLUGIN_ROOT } from "../../core/paths.ts"
-import { discoverAgents, discoverSkills } from "../../core/discovery.ts"
+import { PLUGIN_ROOT } from "../../core/lib/paths/paths.ts"
+import { discoverAgents, discoverSkills } from "../../core/lib/discovery/discovery.ts"
 
 /**
  * Registra en la config viva de OpenCode lo que el plugin declara una sola vez

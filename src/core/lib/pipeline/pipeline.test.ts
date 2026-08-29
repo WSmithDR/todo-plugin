@@ -4,10 +4,10 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { execFileSync } from "node:child_process"
 import { join } from "node:path"
-import { readLastCommit } from "./store.ts"
+import { readLastCommit } from "../store/store.ts"
 import { decideBefore, decideSessionClose } from "./pipeline.ts"
-import { clearTouched, touchedProjects } from "./session-state.ts"
-import { openWindow } from "./window.ts"
+import { clearTouched, touchedProjects } from "../session-state/session-state.ts"
+import { openWindow } from "../window/window.ts"
 
 // El estado y el store son reales: se apuntan a un temp para no tocar los del
 // usuario. XDG_DATA_HOME además decide dónde está el store.

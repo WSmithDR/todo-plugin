@@ -3,7 +3,7 @@ import assert from "node:assert/strict"
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { PLUGIN_ROOT } from "./paths.ts"
+import { PLUGIN_ROOT } from "../paths/paths.ts"
 import {
   checkDeclaredPaths,
   checkHooks,

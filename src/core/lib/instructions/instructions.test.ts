@@ -1,6 +1,6 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { PLUGIN_ROOT } from "./paths.ts"
+import { PLUGIN_ROOT } from "../paths/paths.ts"
 import { buildInstructions, type Dialect } from "./instructions.ts"
 
 const CLI_IMAGINARIO: Dialect = { loadSkill: "Cargá una skill así:", askTool: "preguntame" }

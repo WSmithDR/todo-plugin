@@ -1,5 +1,5 @@
-import { ALLOW, advise, type Decision, type ToolEvent } from "../../protocol.ts"
-import { itemsMentioning } from "../../todo-files.ts"
+import { ALLOW, advise, type Decision, type ToolEvent } from "../../lib/protocol/protocol.ts"
+import { itemsMentioning } from "../../lib/todo-files/todo-files.ts"
 
 export type EditingItemContext = {
   hasTodoDir: boolean

@@ -9,7 +9,7 @@
 import { readStdin } from "../adapters/claude-code/context.ts"
 import { decide } from "../adapters/claude-code/decide.ts"
 import { emit } from "../adapters/claude-code/emit.ts"
-import { openWindow } from "../core/window.ts"
+import { openWindow } from "../core/lib/window/window.ts"
 
 if ((process.argv[2] ?? "check") === "open") {
   openWindow()

@@ -1,6 +1,6 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { PLUGIN_ROOT } from "../../core/paths.ts"
+import { PLUGIN_ROOT } from "../../core/lib/paths/paths.ts"
 import { buildInstructions } from "./instructions.ts"
 
 test("el índice de skills llega con las reglas duras", () => {

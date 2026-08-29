@@ -1,5 +1,5 @@
-import { PLUGIN_ROOT } from "../../core/paths.ts"
-import { buildInstructions as build, type Dialect } from "../../core/instructions.ts"
+import { PLUGIN_ROOT } from "../../core/lib/paths/paths.ts"
+import { buildInstructions as build, type Dialect } from "../../core/lib/instructions/instructions.ts"
 
 /**
  * El dialecto de Claude Code, y su única diferencia de fondo con OpenCode: acá el

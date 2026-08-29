@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
-import { PLUGIN_ROOT } from "./paths.ts"
+import { PLUGIN_ROOT } from "../paths/paths.ts"
 
 /**
  * Descubre las skills y los agentes del plugin leyendo su frontmatter.

@@ -6,9 +6,9 @@
 // va por stderr.
 import { execFileSync } from "node:child_process"
 import { existsSync, rmSync } from "node:fs"
-import { preCommitMarker } from "../core/git.ts"
+import { preCommitMarker } from "../core/lib/git/git.ts"
 import { postCommitReview } from "../core/rules/post-commit/post-commit.ts"
-import { projectForRepo, readLastCommit, repoRootOf, resolveProjectDir } from "../core/store.ts"
+import { projectForRepo, readLastCommit, repoRootOf, resolveProjectDir } from "../core/lib/store/store.ts"
 
 const cwd = process.cwd()
 

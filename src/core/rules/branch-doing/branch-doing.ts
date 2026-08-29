@@ -1,4 +1,4 @@
-import { ALLOW, advise, type Decision, type ToolEvent } from "../../protocol.ts"
+import { ALLOW, advise, type Decision, type ToolEvent } from "../../lib/protocol/protocol.ts"
 
 export type BranchDoingContext = {
   hasTodoDir: boolean

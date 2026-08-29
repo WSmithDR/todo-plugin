@@ -1,6 +1,6 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { ALLOW, advise, deny } from "../../core/protocol.ts"
+import { ALLOW, advise, deny } from "../../core/lib/protocol/protocol.ts"
 import { applyAfter, applyBefore, TITLE_MARK } from "./emit.ts"
 
 test("deny en fase before cancela la tool call", () => {

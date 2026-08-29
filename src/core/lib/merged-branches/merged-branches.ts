@@ -1,5 +1,5 @@
 import { execFileSync, type ExecFileSyncOptions } from "node:child_process"
-import type { OpenItem } from "./todo-files.ts"
+import type { OpenItem } from "../todo-files/todo-files.ts"
 
 /**
  * Ramas mergeadas cruzadas contra items abiertos: la tarea cuyo arreglo ya

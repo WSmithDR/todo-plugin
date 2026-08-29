@@ -1,7 +1,7 @@
 import { execFileSync, spawn, type ExecFileSyncOptions } from "node:child_process"
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmdirSync, rmSync, writeFileSync } from "node:fs"
 import { join, basename, sep } from "node:path"
-import { storeBase, type Env } from "./paths.ts"
+import { storeBase, type Env } from "../paths/paths.ts"
 
 /**
  * Registro central de proyectos sin repo (p.ej. un sitio WordPress operado por

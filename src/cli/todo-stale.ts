@@ -7,9 +7,9 @@
 // relevante, en vez de un `git log` por item: con 48 items abiertos lo segundo es
 // donde el modelo se cansa y saltea.
 import { execFileSync } from "node:child_process"
-import { openItems, readTodoFile } from "../core/todo-files.ts"
-import { staleCandidates, type Change } from "../core/stale-items.ts"
-import { staleScope } from "../core/store.ts"
+import { openItems, readTodoFile } from "../core/lib/todo-files/todo-files.ts"
+import { staleCandidates, type Change } from "../core/lib/stale-items/stale-items.ts"
+import { staleScope } from "../core/lib/store/store.ts"
 
 const MAX_CHANGES_SHOWN = 3
 

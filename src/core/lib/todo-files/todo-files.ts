@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
-import type { Env } from "./paths.ts"
-import { projectForPath, resolveProjectDir } from "./store.ts"
+import type { Env } from "../paths/paths.ts"
+import { projectForPath, resolveProjectDir } from "../store/store.ts"
 
 /** Lectura y parseo de los archivos de `.todo/`. Nadie más los interpreta. */
 

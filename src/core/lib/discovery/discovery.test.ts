@@ -1,7 +1,7 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
 import { discoverAgents, discoverSkills, parseFrontmatter } from "./discovery.ts"
-import { PLUGIN_ROOT } from "./paths.ts"
+import { PLUGIN_ROOT } from "../paths/paths.ts"
 
 test("parseFrontmatter separa campos y cuerpo", () => {
   const { fields, body } = parseFrontmatter(`---

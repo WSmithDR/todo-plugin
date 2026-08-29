@@ -8,10 +8,10 @@
 import { execFileSync } from "node:child_process"
 import { statSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
-import { preCommitMarker } from "../core/git.ts"
+import { preCommitMarker } from "../core/lib/git/git.ts"
 import { openItemTitles, openItems, preCommitReview, registrationCredits } from "../core/rules/pre-commit/pre-commit.ts"
-import { readTodoFile } from "../core/todo-files.ts"
-import { resolveProjectDir } from "../core/store.ts"
+import { readTodoFile } from "../core/lib/todo-files/todo-files.ts"
+import { resolveProjectDir } from "../core/lib/store/store.ts"
 
 const MAX_STAGED_SHOWN = 20
 const RECENT_COMMITS = 5

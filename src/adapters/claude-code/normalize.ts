@@ -1,4 +1,4 @@
-import type { ToolEvent, ToolKind } from "../../core/protocol.ts"
+import type { ToolEvent, ToolKind } from "../../core/lib/protocol/protocol.ts"
 
 /**
  * Payload que Claude Code manda por stdin a un hook. Todo opcional a propósito:

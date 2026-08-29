@@ -5,12 +5,12 @@
 //   todo-health --strict   solo el conformance; exit 1 si algo falla (para CI)
 import { existsSync, lstatSync, readFileSync, readlinkSync } from "node:fs"
 import { join } from "node:path"
-import { PLUGIN_ROOT } from "../core/paths.ts"
-import { declaredVersion, runConformance, worstStatus, type Check } from "../core/conformance.ts"
+import { PLUGIN_ROOT } from "../core/lib/paths/paths.ts"
+import { declaredVersion, runConformance, worstStatus, type Check } from "../core/lib/conformance/conformance.ts"
 import { openItemTitles } from "../core/rules/pre-commit/pre-commit.ts"
 import { GIT_HOOKS } from "../core/rules/session-setup/session-setup.ts"
-import { completedCount, discardedCount, readTodoFile } from "../core/todo-files.ts"
-import { list, mode, projectPath } from "../core/store.ts"
+import { completedCount, discardedCount, readTodoFile } from "../core/lib/todo-files/todo-files.ts"
+import { list, mode, projectPath } from "../core/lib/store/store.ts"
 
 const strict = process.argv.includes("--strict")
 

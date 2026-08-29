@@ -1,4 +1,4 @@
-import type { Decision } from "../../core/protocol.ts"
+import type { Decision } from "../../core/lib/protocol/protocol.ts"
 import type { Mode } from "./decide.ts"
 
 /**

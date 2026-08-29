@@ -1,8 +1,8 @@
-import { ALLOW, advise, deny, type Decision } from "../../protocol.ts"
+import { ALLOW, advise, deny, type Decision } from "../../lib/protocol/protocol.ts"
 
 // Re-export por compatibilidad: el parseo ahora vive en core/todo-files.ts.
-export { openItemTitles } from "../../todo-files.ts"
-import { itemsMentioning, openItems, type OpenItem } from "../../todo-files.ts"
+export { openItemTitles } from "../../lib/todo-files/todo-files.ts"
+import { itemsMentioning, openItems, type OpenItem } from "../../lib/todo-files/todo-files.ts"
 export { openItems }
 
 export type PreCommitInput = {

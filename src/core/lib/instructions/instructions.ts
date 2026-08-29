@@ -1,5 +1,5 @@
-import { PLUGIN_ROOT } from "./paths.ts"
-import { discoverSkills } from "./discovery.ts"
+import { PLUGIN_ROOT } from "../paths/paths.ts"
+import { discoverSkills } from "../discovery/discovery.ts"
 
 /**
  * El índice de skills y las reglas duras, para el system prompt del CLI que sea.

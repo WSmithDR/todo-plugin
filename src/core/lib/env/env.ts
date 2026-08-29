@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs"
 import { join } from "node:path"
-import type { Env } from "./paths.ts"
-import { list, mode } from "./store.ts"
+import type { Env } from "../paths/paths.ts"
+import { list, mode } from "../store/store.ts"
 
 /** Estado del entorno que las reglas reciben como parámetro en vez de leer. */
 
